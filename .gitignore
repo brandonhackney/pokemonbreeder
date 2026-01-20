@@ -1,0 +1,23 @@
+## Generic exclusions
+# System files
+.DS_Store
+*.asv
+*~
+*.tmp
+
+# Python optimization leftovers
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Left by RStudio
+.Rhistory
+.Rapp.history
+
+## Project-specific exclusions
+*.xlsx
+*.html
+
+# Development-related
+notes.txt
+test*
