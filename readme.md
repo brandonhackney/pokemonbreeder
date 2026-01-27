@@ -26,4 +26,4 @@ listing the Pokemon in each group.
     get this data into a more usable state.
 * `readme.md`: this document.
 * `myFunctions.R`: R code to transform the data
-
+* `app.R`: R code controlling the Shiny app (GUI and execution)

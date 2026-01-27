@@ -32,3 +32,14 @@ Eggs <- bind_cols(pokedex, eggMatrix)
 return(Eggs)
 # done!
 }
+
+## Function 2: Generate tile contents based on Pokedex number
+getCard <- function(i, eggs){
+	myCard <- card(
+		fill = FALSE,
+		card_image(
+			sprintf("https://serebii.net/pokearth/sprites/gold/%03i.png",eggs$Number[i])
+		),
+		card_footer(eggs$Name[i])
+	)
+}
