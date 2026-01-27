@@ -4,7 +4,7 @@ source("myFunctions.R")
 
 eggs <- getEggGroups()
 
-myList <- eggs$Number[as.logical(eggs$Dragon)]
+myList <- eggs$Number[eggs$Dragon]
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
 	title = "Pokemon Gen2 Egg Group Analyzer",
@@ -16,17 +16,33 @@ uiF <- page_sidebar(
 			choices = eggs$Name
 		)
 	),
+
+		uiOutput("cardContainer")
+
 	
-			layout_column_wrap(
-				getCard(myList[1],eggs),
-				getCard(myList[2],eggs),
-				getCard(myList[3],eggs)
-			)
 )
 
 # A function that runs the actual code
 serverF <- function(input, output) {
+	# Decide which egg groups to display
+	# As a first step, just display the Pokemon's egg groups
 	
+	displayList <- reactive({
+		getNumbers(input$Dropdown, eggs) # example list of Pokemon numbers
+	})
+	
+	# Generate a "tag list" referencing the objects, used by uiOutput()
+	output$cardContainer <- renderUI({
+		card_list <- lapply(displayList(), getCard, eggs = eggs)
+		card_list$cellArgs <- list(
+			style = "
+			width: 140px;
+			height: auto;
+			margin: 10px;
+			"
+		)
+		do.call(flowLayout, card_list)
+	})
 }
 
 # Activate the server with the defined UI
