@@ -14,7 +14,8 @@ uiF <- page_sidebar(
 			"Dropdown",
 			label = "Select a Pokemon",
 			choices = eggs$Name
-		)
+		),
+		uiOutput("selectionCard")
 	),
 
 		uiOutput("cardContainer")
@@ -24,11 +25,18 @@ uiF <- page_sidebar(
 
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
-	# Decide which egg groups to display
-	# As a first step, just display the Pokemon's egg groups
-	
+	# Decide which egg groups to display based on input name
 	displayList <- reactive({
-		getNumbers(input$Dropdown, eggs) # example list of Pokemon numbers
+		getNumbers(input$Dropdown, eggs) # outputs a list of Pokemon numbers
+	})
+	
+	# Get the number of the selected Pokemon
+	selectionNumber <- reactive({
+		 eggs$Number[eggs$Name == input$Dropdown]
+	})
+	
+	output$selectionCard <- renderUI({
+		selCard <- getCard(selectionNumber(), eggs)
 	})
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
