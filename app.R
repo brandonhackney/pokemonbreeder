@@ -7,7 +7,7 @@ eggs <- getEggGroups()
 myList <- eggs$Number[eggs$Dragon]
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
-	title = "Pokemon Gen2 Egg Group Analyzer",
+	title = "Pokemon Breeding Assistant",
 	sidebar = sidebar(
 		helpText("List all possible mates for the selected Pokemon"),
 		selectInput(

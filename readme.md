@@ -1,29 +1,37 @@
-# Pokemon Breeding Aide
+# Pokemon Breeding Assistant
 
-The point of this project is to practice some data science skills in my off time.
-I have a list of all 251 Pokemon in Gen2, along with a list of the 16 different 
-"egg groups" they fall into.
-The goal is to organize this data in several steps:
+I built a simple app using [Shiny for R](https://shiny.posit.co/)
+that allows you to pick one of the 251 Pokemon in Gold & Silver versions,
+then returns a visual report of which other Pokemon it can "breed" with.
+The game has certain rules about breeding that make this slightly more complicated
+than just filtering a table.
+    
+## How to run
 
-1. Combine the 251 $\times$ 1 Pokedex with the _n_ $\times$ 16 group list to get a
-251 $\times$ 16 table that indicates which groups each Pokemon belongs to.
-1. Create a Shiny app that can filter the table on the fly, so that you can pick
-a Pokemon and get a report of everyone it can directly breed with.
-1. Identify the critical Pokemon that belong to multiple egg groups.
-1. Long-term, write some code that lets you pick TWO Pokemon at a time,
-then analyzes whether you can form a chain from one to the other.
-    - For example, if we assume that Gyarados can pass Dragon Rage on to its children, 
-and its children's children, etc., could you theoretically pass it to a Stantler
-through a long chain of breeding?
-    - I assume this will use the A* search algorithm we discussed in Zyg's class.
+Required libraries: shiny, bslib, tidyverse
+
+Clone this repo, open `app.R` in [RStudio](https://posit.co/download/rstudio-desktop/),
+and click the "Run App" button.
+
+Below is an example of what the app looks like:
+
+![](assets/dash.png)
+
+## Future plans
+
+Long term, I would also like to implement a search algorithm (like A*)
+that lets you pick TWO Pokemon at a time,
+then analyzes whether you can chain-breed from one to the other,
+and returns a graph of the shortest path.
+
+This is just a data science exercise for me, so I'm unlikely to add support for newer games.
+But feel free to fork and expand for your own purposes.
 
 ## Manifest
 
 * `dex.tsv`: a list of all Pokemon in numerical order.
-* `groups.csv` has each egg group as a column, with an unequal number of rows per column,
-listing the Pokemon in each group.
-    * This is far from an ideal format; the entire point of this project is to
-    get this data into a more usable state.
+* `groups.csv` has each "egg group"" as a column, with an unequal number of rows per column,
+listing the Pokemon in each group by name.
 * `readme.md`: this document.
-* `myFunctions.R`: R code to transform the data
-* `app.R`: R code controlling the Shiny app (GUI and execution)
+* `helper.R`: R code for transforming the data
+* `app.R`: R code controlling the GUI
