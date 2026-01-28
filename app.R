@@ -22,7 +22,7 @@ uiF <- page_sidebar(
 	
 )
 
-# A function that runs the actual code
+# A function that runs code based on UI selections
 serverF <- function(input, output) {
 	# Decide which egg groups to display
 	# As a first step, just display the Pokemon's egg groups

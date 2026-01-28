@@ -44,12 +44,25 @@ return(Eggs)
 
 ## Function 2: Generate tile contents based on Pokedex number
 getCard <- function(i, eggs){
-	myCard <- card(
-		card_image(
-			sprintf("https://serebii.net/pokearth/sprites/gold/%03i.png",eggs$Number[i])
-		),
-		card_footer(eggs$Name[i])
-	)
+	if (i == 0) {
+		# No results: return a unique card
+		myCard <- card(
+			# Some sort of NO icon
+			card_body(
+				bsicons::bs_icon("ban", size = "85px"),
+				style = "display: block; margin-left: auto; margin-right: auto;",
+			),
+			card_footer("Cannot breed")
+		)
+	}
+	else {
+		myCard <- card(
+			card_image(
+				sprintf("https://serebii.net/pokearth/sprites/gold/%03i.png",eggs$Number[i])
+			),
+			card_footer(eggs$Name[i])
+		)
+	}
 }
 
 ## Function 3: Output a list of Pokemon numbers based on input Pokemon name
@@ -63,8 +76,26 @@ getNumbers <- function(Pokemon, eggs){
 	# Intercept if it belongs to certain groups
 	# Ditto is #132
 	# Ditto can breed with anything besides Ditto and NoEggs
-	# NoEggs cannot breed with itself or Ditto
-	# Neuter can breed with Ditto, but not itself
+	
+	# NoEggs cannot breed at all, whether with itself or with Ditto
+	if ("NoEgg" %in% active_cols) {
+		return(0)
+	}
+	# Neuter can only breed with Ditto, not other members
+	else if ("Neuter" %in% active_cols) {
+		return(132)
+	}
+	# Ditto can breed with anything besides NoEggs and other Ditto
+	else if ("Ditto" %in% active_cols) {
+		active_cols <- eggs %>% 
+			select(-c(Number, Name, NoEgg, Ditto)) %>% 
+			colnames()
+	}
+	# Everything else can also breed with Ditto
+	else {
+		active_cols <- active_cols %>% 
+			append("Ditto")
+	}
 	# Everything else, display that Pokemon's egg groups AND Ditto
 	#if (length(active_cols) == 0) return(integer(0))
 	eggs %>% 
