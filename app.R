@@ -17,7 +17,7 @@ uiF <- page_sidebar(
 		),
 		uiOutput("selectionCard")
 	),
-
+		textOutput("Tally"),
 		uiOutput("cardContainer")
 
 	
@@ -28,6 +28,24 @@ serverF <- function(input, output) {
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
 		getNumbers(input$Dropdown, eggs) # outputs a list of Pokemon numbers
+	})
+	
+	# Tally number of mates, but if result contains 0, that means none, not 1
+	getCount <- reactive({
+		y <- displayList()
+		if (length(y) == 1 && y[1] == 0){
+			0
+		}
+		else {
+			length(y)
+		}
+	})
+	# Count the number of results and display
+	getName <- reactive({
+		c(input$Dropdown, "has", getCount(), "potential mates")
+	})
+	output$Tally <-  renderText({
+		getName()
 	})
 	
 	# Get the number of the selected Pokemon
