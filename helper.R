@@ -34,7 +34,7 @@ Eggs <- bind_cols(pokedex, eggMatrix)
 Eggs <- Eggs %>% 
 	mutate(
 		across(
-			-(Number:Name),
+			-(Number:Ratio),
 			~ .x == "TRUE"
 		)
 	)
@@ -70,7 +70,7 @@ getNumbers <- function(Pokemon, eggs){
 	# Find the columns used by this Pokemon
 	active_cols <- eggs %>% 
 		filter(Name == Pokemon) %>% 
-		select(-(Number:Name)) %>% 
+		select(-(Number:Ratio)) %>% 
 		select(where(isTRUE)) %>% 
 		colnames()
 	# Intercept if it belongs to certain groups
@@ -88,7 +88,7 @@ getNumbers <- function(Pokemon, eggs){
 	# Ditto can breed with anything besides NoEggs and other Ditto
 	else if ("Ditto" %in% active_cols) {
 		active_cols <- eggs %>% 
-			select(-c(Number, Name, NoEgg, Ditto)) %>% 
+			select(-c(Number, Name, Ratio, NoEgg, Ditto)) %>% 
 			colnames()
 	}
 	# Everything else can also breed with Ditto
@@ -96,10 +96,20 @@ getNumbers <- function(Pokemon, eggs){
 		active_cols <- active_cols %>% 
 			append("Ditto")
 	}
-	# Everything else, display that Pokemon's egg groups AND Ditto
-	#if (length(active_cols) == 0) return(integer(0))
-	eggs %>% 
+	# If we didn't break early, get that Pokemon's egg groups AND Ditto
+	candidates <- eggs %>% 
 		filter(if_any(all_of(active_cols), ~ .x)) %>% 
 		pull(Number)
-		
+	
+	# Final check: All-male species cannot breed with other all-male species,
+	# and the same goes for all-female species
+	inputRatio <- eggs$Ratio[eggs$Name == Pokemon]
+	if (inputRatio == 0){
+		return(candidates) 
+	}
+	else {
+		# Skip anything in the same ratio if it's 1 or 2
+		candidates <- candidates[eggs$Ratio[candidates] != inputRatio]
+	}
+	return(candidates)
 }
