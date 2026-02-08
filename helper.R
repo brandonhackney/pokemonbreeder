@@ -113,3 +113,67 @@ getNumbers <- function(Pokemon, eggs){
 	}
 	return(candidates)
 }
+
+## Function 4: Find the shortest breeding chain from P1 to P2, if possible.
+# If multiple options of the same length exist, returns them all.
+findChain <- function(P1, P2, eggs){
+	# Given the NUMBERS of two Pokemon P1 and P2,
+	# Return a "PATH" that consists of multiple nodes
+	# Each node is a "step" in the breeding chain from P1 to P2
+	# Nodes may contain multiple Pokemon if multiple chains exist
+	# This is essentially a breadth-first search, since we want the shortest path
+	
+	TESTED <- P1
+	PATH <- list(P1)
+	depth <- 0
+	found <- FALSE
+	while (!found) {
+		depth <- depth + 1
+		numDeadEnds = 0
+		# Check results for each Pokemon in the next layer of PATH
+		for (mon in PATH[[depth]]) {
+			TESTED <- append(TESTED, mon) # avoid recursion
+			mateList <- getNumbers(eggs$Name[mon], eggs)
+			if (P2 %in% mateList){
+				# If the target Pokemon can mate with the active check
+				PATH[depth+1] <- P2
+				found <- TRUE
+				# But don't break out of the for loop: check for all possibilities
+			} else {
+				# If the target Pokemon is NOT in the current mate list,
+				# then add all untested mates of the active mon to our next test layer,
+				# filtered to just those who span multiple egg groups.
+				mateList <- checkMultiGroup(mateList, eggs) # filter to group jumpers
+				mateList <- discard(mateList, ~ .x %in% TESTED) # drop anything we've tested already
+				if (length(mateList) == 0){
+					numDeadEnds = numDeadEnds + 1
+					# But if active mon is a dead-end, remove it from all layers of Path
+					PATH <- discard(PATH, ~ .x %in% mon)
+				} else{
+						# Add mate list to the next layer
+						PATH[depth+1] <- PATH[depth+1] %>% 
+							append(mateList) %>% 
+							unique() %>% 
+							discard(is.null)
+				} # end if matelist is empty
+				
+			} # end if P2 is in matelist
+		} # end for each pokemon at this depth
+		
+		# If everything in this layer is a dead end, then no path exists. Exit.
+		if (numDeadEnds == length(PATH[depth])){
+			PATH <- NULL
+			found <- TRUE
+		}
+	} # end while not found
+	return(PATH)
+} # end function
+
+## FUNCTION 5: Filter a list of Pokemon to only those in multiple egg groups
+checkMultiGroup <- function(checklist, eggs){
+	eggs %>% 
+		filter(Number %in% checklist) %>% 
+		filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
+		pull(Number)
+		
+}
