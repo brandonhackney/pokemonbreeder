@@ -1,11 +1,15 @@
 library(tidyverse)
 library(igraph)
 
-# Convert egg group table to a graph structure
+# Convert table of egg group memberships into a graph structure
+# Each Pokemon is a node, and edges imply breeding compatibility
 buildGraph <- function(eggs){
 	# Get just the logical columns (i.e. egg groups) to be our "edges"
 	logicals <- eggs %>% 
-		select(-(Number:Ratio))
+		select(-(Number:Ratio)) %>% 
+		rename(GDitto = Ditto)
+	# Rename the Ditto group so that you have unique node names
+	
 	
 	# Convert logical table into a list of the TRUE indices (ie row/col)
 	# This defines graph edges between each Pokemon and their group indices
@@ -20,11 +24,27 @@ buildGraph <- function(eggs){
 		EggGroup = names(logicals)[edges[,2]]
 	)
 	
-	# Convert to a bipartite graph format
-	graph_from_data_frame(edgesNamed, directed = FALSE)
+	# Flatten out into a single-dimension vector, how igraph expects edge lists
+	edgeVec <- as.vector(t(edgesNamed))
+
+	# Edges are between pokemon and egg groups,
+	# so groups are considered vertices the same as Pokemon.
+	# Thus, you need to indicate which "type" of vertex each one is.
+	numPok <- nrow(eggs)
+	numGrp <- ncol(logicals)
+	type <- c(rep(FALSE,numPok), rep(TRUE,numGrp))
+	names(type) <- c(eggs$Name, colnames(logicals))
+	
+	# Create the igraph structure
+	# "Bipartite" means edges only go from one type (or "part") to another
+	testGraph <- make_bipartite_graph(type, edgeVec, directed = FALSE)
+	
+	# Project bipartite graph to row-row graph,
+	# which should convert pok-group edges to pok-pok edges, ie interconnect
+	proj <- bipartite_projection(testGraph, types = type)
+	
+	# proj has two graphs: one showing connections bw Pokemon, the other bw groups
+	# We only care about the former.
+	return(proj[[1]])
 }
 
-# Project bipartite graph to row-row graph,
-# which should convert group connections to interconnections
-# ...currently fails because 'types' is not properly set
-#proj <- bipartite_projection(newGraph)
