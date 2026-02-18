@@ -47,6 +47,9 @@ buildGraph <- function(eggs){
 	# We only care about the former.
 	proj <- proj[[1]]
 	
+	# Convert the edges from undirected to mutually-directed
+	# Facilitates pathing later on
+	proj <- as_directed(proj, mode = "mutual")
 	# Implement the unusual rules, e.g. two all-male species cannot interbreed
 	proj <- editGraph(proj, eggs)
 	
@@ -54,23 +57,28 @@ buildGraph <- function(eggs){
 }
 
 editGraph <- function(bipGraph, eggs){
-	# Find edges to be disconnected
-	# Everything in NoEggs and Neuter
+	# Disconnect everything in NoEggs AND Neuter
 	noEggIDs <- eggs$Name[eggs$NoEgg == TRUE]
 	neuterIDs <- eggs$Name[eggs$Neuter == TRUE]
 	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
 	neuterEdges <- E(bipGraph)[neuterIDs %--% neuterIDs]
-	#noEggEdges <- incident(bipGraph, "NoEgg")
-	#neuterEdges <- incident(bipGraph, "Neuter")
-	# All-female species should not connect to each other
-	# Same for all-male species
+	
+	# All-female species cannot "father" anything
+	# All-male species cannot "mother" anything
 	femaleIDs <- eggs$Name[eggs$Ratio == 1]
 	maleIDs <- eggs$Name[eggs$Ratio == 2]
-	# Find the edges connecting any of these nodes to each other
-	ffEdges <- E(bipGraph)[femaleIDs %--% femaleIDs]
-	mmEdges <- E(bipGraph)[maleIDs %--% maleIDs]
-	# Now delete all those bad edges
+	# Find edges where females are "fathers" and vice versa
+	ffEdges <- E(bipGraph)[.from(femaleIDs)]
+	mmEdges <- E(bipGraph)[.to(maleIDs)]
+
+	# Now delete all the bad edges
 	badEdges <- c(noEggEdges, neuterEdges,mmEdges,ffEdges)
 	newGraph <- delete_edges(bipGraph, badEdges)
+	
+	# Finally, add edges for everything that can breed with Ditto
+	toDittoIDs <- eggs$Name[eggs$NoEgg == FALSE & eggs$Ditto == FALSE]
+	newEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
+	newGraph <- add_edges(newGraph, newEdges)
+	
 	return(newGraph)
 }
