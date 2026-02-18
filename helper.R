@@ -44,6 +44,10 @@ return(Eggs)
 
 ## Function 2: Generate tile contents based on Pokedex number
 getCard <- function(i, eggs){
+	# validate input
+	if (!is.numeric(i)){
+		i <- name2num(i, eggs)
+	}
 	if (i == 0) {
 		# No results: return a unique card
 		myCard <- card(
@@ -176,4 +180,11 @@ checkMultiGroup <- function(checklist, eggs){
 		filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
 		pull(Number)
 		
+}
+
+## Convert a list of Pokemon names to Pokemon numbers
+name2num <- function(nameList, eggs){
+	eggs %>% 
+		filter(Name %in% nameList) %>% 
+		pull(Number)
 }
