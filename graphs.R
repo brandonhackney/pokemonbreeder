@@ -28,7 +28,7 @@ buildGraph <- function(eggs){
 	edgeVec <- as.vector(t(edgesNamed))
 
 	# Edges are between pokemon and egg groups,
-	# so groups are considered vertices the same as Pokemon.
+	# so groups are considered vertices, indistinguishable from Pokemon.
 	# Thus, you need to indicate which "type" of vertex each one is.
 	numPok <- nrow(eggs)
 	numGrp <- ncol(logicals)
@@ -37,14 +37,34 @@ buildGraph <- function(eggs){
 	
 	# Create the igraph structure
 	# "Bipartite" means edges only go from one type (or "part") to another
-	testGraph <- make_bipartite_graph(type, edgeVec, directed = FALSE)
+	bipGraph <- make_bipartite_graph(type, edgeVec, directed = FALSE)
+	
+	# Implement the unusual rules, e.g. two all-male species cannot interbreed
+	bipGraph <- editGraph(bipGraph, eggs)
 	
 	# Project bipartite graph to row-row graph,
 	# which should convert pok-group edges to pok-pok edges, ie interconnect
-	proj <- bipartite_projection(testGraph, types = type)
+	proj <- bipartite_projection(bipGraph, types = type)
 	
 	# proj has two graphs: one showing connections bw Pokemon, the other bw groups
 	# We only care about the former.
 	return(proj[[1]])
 }
 
+editGraph <- function(bipGraph, eggs){
+	# Find edges to be disconnected
+	# Everything in NoEggs and Neuter
+	noEggEdges <- incident(bipGraph, "NoEgg")
+	neuterEdges <- incident(bipGraph, "Neuter")
+	# All-female species should not connect to each other
+	# Same for all-male species
+	femaleIDs <- eggs$Name[eggs$Ratio == 1]
+	maleIDs <- eggs$Name[eggs$Ratio == 2]
+	# Find the edges connecting any of these nodes to each other
+	ffEdges <- E(bipGraph)[femaleIDs %--% femaleIDs]
+	mmEdges <- E(bipGraph)[maleIDs %--% maleIDs]
+	# Now delete all those bad edges
+	badEdges <- c(noEggEdges, neuterEdges,mmEdges,ffEdges)
+	newGraph <- delete_edges(bipGraph, badEdges)
+	return(newGraph)
+}
