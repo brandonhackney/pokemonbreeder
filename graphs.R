@@ -82,3 +82,25 @@ editGraph <- function(bipGraph, eggs){
 	
 	return(newGraph)
 }
+
+# Return results from the graph
+getMates <- function(Pokemon, eggGraph){
+	l <- neighbors(eggGraph, Pokemon)
+	result <- V(eggGraph)$name[l]
+	if (is_empty(result)){
+		return(0)
+	} else{
+		return(result)
+	}
+}
+
+# Find path from X to Y
+# This currently returns some unusable object, not just the names
+getPath <- function(A, B, eggGraph){
+	shortest_paths(eggGraph,
+								 A,
+								 to = B,
+								 algorithm = "unweighted",
+								 output = "vpath"
+								 )
+}
