@@ -39,23 +39,29 @@ buildGraph <- function(eggs){
 	# "Bipartite" means edges only go from one type (or "part") to another
 	bipGraph <- make_bipartite_graph(type, edgeVec, directed = FALSE)
 	
-	# Implement the unusual rules, e.g. two all-male species cannot interbreed
-	bipGraph <- editGraph(bipGraph, eggs)
-	
 	# Project bipartite graph to row-row graph,
 	# which should convert pok-group edges to pok-pok edges, ie interconnect
 	proj <- bipartite_projection(bipGraph, types = type)
 	
 	# proj has two graphs: one showing connections bw Pokemon, the other bw groups
 	# We only care about the former.
-	return(proj[[1]])
+	proj <- proj[[1]]
+	
+	# Implement the unusual rules, e.g. two all-male species cannot interbreed
+	proj <- editGraph(proj, eggs)
+	
+	return(proj)
 }
 
 editGraph <- function(bipGraph, eggs){
 	# Find edges to be disconnected
 	# Everything in NoEggs and Neuter
-	noEggEdges <- incident(bipGraph, "NoEgg")
-	neuterEdges <- incident(bipGraph, "Neuter")
+	noEggIDs <- eggs$Name[eggs$NoEgg == TRUE]
+	neuterIDs <- eggs$Name[eggs$Neuter == TRUE]
+	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
+	neuterEdges <- E(bipGraph)[neuterIDs %--% neuterIDs]
+	#noEggEdges <- incident(bipGraph, "NoEgg")
+	#neuterEdges <- incident(bipGraph, "Neuter")
 	# All-female species should not connect to each other
 	# Same for all-male species
 	femaleIDs <- eggs$Name[eggs$Ratio == 1]
