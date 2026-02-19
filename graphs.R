@@ -57,7 +57,11 @@ buildGraph <- function(eggs){
 }
 
 editGraph <- function(bipGraph, eggs){
-	# Disconnect everything in NoEggs AND Neuter
+	# Reinsert missing self-self edges
+	# (e.g. Bulbasaur CAN actually breed with Bulbasaur)
+	bipGraph <- add_edges(bipGraph, rep(V(bipGraph), each = 2))
+	
+	# Completely disconnect everything in NoEggs AND Neuter
 	noEggIDs <- eggs$Name[eggs$NoEgg == TRUE]
 	neuterIDs <- eggs$Name[eggs$Neuter == TRUE]
 	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
@@ -95,12 +99,23 @@ getMates <- function(Pokemon, eggGraph){
 }
 
 # Find path from X to Y
-# This currently returns some unusable object, not just the names
+# Returns a character list giving the names of each vertex from X to Y
+# But if Y is unreachable from X, it returns 0 instead.
 getPath <- function(A, B, eggGraph){
-	shortest_paths(eggGraph,
+	# This warns that the unweighted algorithm ignores weights
+	# but I don't supply weights, so I don't care about the warning.
+	suppressWarnings(
+	result <- shortest_paths(eggGraph,
 								 A,
 								 to = B,
 								 algorithm = "unweighted",
 								 output = "vpath"
 								 )
+	)
+	# Even though we specify output = vpath,
+	# the returned object is a list where vpath is element 1,
+	# and then it has null values for the other 3 output options.
+	# So we have to slice that first element to actually get vpath.
+	# Then access the "name" attribute from within THAT
+	return(result$vpath[[1]]$name)
 }
