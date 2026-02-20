@@ -3,7 +3,8 @@ library(igraph)
 
 # Convert table of egg group memberships into a graph structure
 # Each Pokemon is a node, and edges imply breeding compatibility
-buildGraph <- function(eggs){
+buildGraph <- function(){
+	eggs <- getEggs()
 	# Get just the logical columns (i.e. egg groups) to be our "edges"
 	logicals <- eggs %>% 
 		select(-(Number:Ratio)) %>% 
@@ -51,12 +52,13 @@ buildGraph <- function(eggs){
 	# Facilitates pathing later on
 	proj <- as_directed(proj, mode = "mutual")
 	# Implement the unusual rules, e.g. two all-male species cannot interbreed
-	proj <- editGraph(proj, eggs)
+	proj <- editGraph(proj)
 	
 	return(proj)
 }
 
-editGraph <- function(bipGraph, eggs){
+editGraph <- function(bipGraph){
+	eggs <- getEggs()
 	# Reinsert missing self-self edges
 	# (e.g. Bulbasaur CAN actually breed with Bulbasaur)
 	bipGraph <- add_edges(bipGraph, rep(V(bipGraph), each = 2))
@@ -88,7 +90,8 @@ editGraph <- function(bipGraph, eggs){
 }
 
 # Return results from the graph
-getMates <- function(Pokemon, eggGraph){
+getMates <- function(Pokemon){
+	eggGraph <- getGraph()
 	l <- neighbors(eggGraph, Pokemon)
 	result <- V(eggGraph)$name[l]
 	if (is_empty(result)){
@@ -101,11 +104,11 @@ getMates <- function(Pokemon, eggGraph){
 # Find path from X to Y
 # Returns a character list giving the names of each vertex from X to Y
 # But if Y is unreachable from X, it returns 0 instead.
-getPath <- function(A, B, eggGraph){
+getPath <- function(A, B){
 	# This warns that the unweighted algorithm ignores weights
 	# but I don't supply weights, so I don't care about the warning.
 	suppressWarnings(
-	result <- shortest_paths(eggGraph,
+	result <- shortest_paths(getGraph(),
 								 A,
 								 to = B,
 								 algorithm = "unweighted",

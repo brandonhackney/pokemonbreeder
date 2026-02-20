@@ -2,9 +2,9 @@ library(shiny)
 library(bslib)
 source("helper.R")
 
-eggs <- getEggGroups()
+initData()
+eggs <- getEggs()
 
-myList <- eggs$Number[eggs$Dragon]
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
 	title = "Pokemon Breeding Assistant",
@@ -27,7 +27,7 @@ uiF <- page_sidebar(
 serverF <- function(input, output) {
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
-		getNumbers(input$Dropdown, eggs) # outputs a list of Pokemon numbers
+		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
 	})
 	
 	# Tally number of mates, but if result contains 0, that means none, not 1
@@ -50,16 +50,16 @@ serverF <- function(input, output) {
 	
 	# Get the number of the selected Pokemon
 	selectionNumber <- reactive({
-		 eggs$Number[eggs$Name == input$Dropdown]
+		 name2num(input$Dropdown)
 	})
 	
 	output$selectionCard <- renderUI({
-		selCard <- getCard(selectionNumber(), eggs)
+		selCard <- getCard(selectionNumber())
 	})
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
 	output$cardContainer <- renderUI({
-		card_list <- lapply(displayList(), getCard, eggs = eggs)
+		card_list <- lapply(displayList(), getCard)
 		card_list$cellArgs <- list(
 			style = "
 			width: 140px;

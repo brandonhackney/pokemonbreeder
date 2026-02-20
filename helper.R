@@ -2,6 +2,19 @@
 library(tidyverse)
 library(dplyr)
 
+# Define an environment variable to contain backend data, with getter functions
+.pokeData <- new.env(parent = emptyenv())
+initData <- function(){
+	.pokeData$eggs <- getEggGroups()
+	.pokeData$graph <- buildGraph()
+}
+getEggs <- function(){
+	.pokeData$eggs
+}
+getGraph <- function(){
+	.pokeData$graph
+}
+
 ## Function 1: Get a tibble listing which egg groups each Pokemon belongs to
 getEggGroups <- function(){
 # Read in the list of Pokemon
@@ -43,7 +56,8 @@ return(Eggs)
 }
 
 ## Function 2: Generate tile contents based on Pokedex number
-getCard <- function(i, eggs){
+getCard <- function(i){
+	eggs <- getEggs()
 	# validate input
 	if (!is.numeric(i)){
 		i <- name2num(i, eggs)
@@ -70,7 +84,8 @@ getCard <- function(i, eggs){
 }
 
 ## Function 3: Output a list of Pokemon numbers based on input Pokemon name
-getNumbers <- function(Pokemon, eggs){
+getNumbers <- function(Pokemon){
+	eggs <- getEggs()
 	# Find the columns used by this Pokemon
 	active_cols <- eggs %>% 
 		filter(Name == Pokemon) %>% 
@@ -120,12 +135,13 @@ getNumbers <- function(Pokemon, eggs){
 
 ## Function 4: Find the shortest breeding chain from P1 to P2, if possible.
 # If multiple options of the same length exist, returns them all.
-findChain <- function(P1, P2, eggs){
+findChain <- function(P1, P2){
 	# Given the NUMBERS of two Pokemon P1 and P2,
 	# return a list of numbers showing how to chain from P1 to P2
 	# If there are multiple options of the same length, returns a list of lists
 	# if P2 is unreachable from P1, returns NULL instead
 	
+	eggs <- getEggs()
 	# Defensive coding
 	if (!is.numeric(P1)) P1 <- name2num(P1, eggs)
 	if (!is.numeric(P2)) P2 <- name2num(P2, eggs)
@@ -149,14 +165,14 @@ findChain <- function(P1, P2, eggs){
 		
 		# See if P2 is in the list of mates for the current check
 		# If so, mark it as "found"
-		mateList <- getNumbers(eggs$Name[current], eggs)
+		mateList <- getNumbers(eggs$Name[current])
 		if (P2 %in% mateList) {
 			parents[[P2]] <- c(parents[[P2]], current)
 			found_depth <- distance[current] + 1
 		}
 		
 		# If P2 not found in this layer, restrict search to those who cross groups
-		mateList <- checkMultiGroup(mateList, eggs)
+		mateList <- checkMultiGroup(mateList)
 		
 		for (neighbor in mateList) {
 			new_dist <- distance[current] + 1
@@ -209,8 +225,8 @@ findChain <- function(P1, P2, eggs){
 
 
 ## FUNCTION 5: Filter a list of Pokemon to only those in multiple egg groups
-checkMultiGroup <- function(checklist, eggs){
-	eggs %>% 
+checkMultiGroup <- function(checklist){
+		getEggs() %>% 
 		filter(Number %in% checklist) %>% 
 		filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
 		pull(Number)
@@ -218,8 +234,8 @@ checkMultiGroup <- function(checklist, eggs){
 }
 
 ## Convert a list of Pokemon names to Pokemon numbers
-name2num <- function(nameList, eggs){
-	eggs %>% 
+name2num <- function(nameList){
+	getEggs() %>% 
 		filter(Name %in% nameList) %>% 
 		pull(Number)
 }
