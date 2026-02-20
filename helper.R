@@ -122,56 +122,91 @@ getNumbers <- function(Pokemon, eggs){
 # If multiple options of the same length exist, returns them all.
 findChain <- function(P1, P2, eggs){
 	# Given the NUMBERS of two Pokemon P1 and P2,
-	# Return a "PATH" that consists of multiple nodes
-	# Each node is a "step" in the breeding chain from P1 to P2
-	# Nodes may contain multiple Pokemon if multiple chains exist
-	# This is essentially a breadth-first search, since we want the shortest path
+	# return a list of numbers showing how to chain from P1 to P2
+	# If there are multiple options of the same length, returns a list of lists
+	# if P2 is unreachable from P1, returns NULL instead
 	
-	TESTED <- P1
-	PATH <- list(P1)
-	depth <- 0
-	found <- FALSE
-	while (!found) {
-		depth <- depth + 1
-		numDeadEnds = 0
-		# Check results for each Pokemon in the next layer of PATH
-		for (mon in PATH[[depth]]) {
-			TESTED <- append(TESTED, mon) # avoid recursion
-			mateList <- getNumbers(eggs$Name[mon], eggs)
-			if (P2 %in% mateList){
-				# If the target Pokemon can mate with the active check
-				PATH[depth+1] <- P2
-				found <- TRUE
-				# But don't break out of the for loop: check for all possibilities
-			} else {
-				# If the target Pokemon is NOT in the current mate list,
-				# then add all untested mates of the active mon to our next test layer,
-				# filtered to just those who span multiple egg groups.
-				mateList <- checkMultiGroup(mateList, eggs) # filter to group jumpers
-				mateList <- discard(mateList, ~ .x %in% TESTED) # drop anything we've tested already
-				if (length(mateList) == 0){
-					numDeadEnds = numDeadEnds + 1
-					# But if active mon is a dead-end, remove it from all layers of Path
-					PATH <- discard(PATH, ~ .x %in% mon)
-				} else{
-						# Add mate list to the next layer
-						PATH[depth+1] <- PATH[depth+1] %>% 
-							append(mateList) %>% 
-							unique() %>% 
-							discard(is.null)
-				} # end if matelist is empty
-				
-			} # end if P2 is in matelist
-		} # end for each pokemon at this depth
+	# Defensive coding
+	if (!is.numeric(P1)) P1 <- name2num(P1, eggs)
+	if (!is.numeric(P2)) P2 <- name2num(P2, eggs)
+	if (P1 == 0 || P2 == 0) return(NULL)
+	if (P1 == P2) return(list(c(P1)))
+	
+	# Initialize search variables
+	queue <- c(P1)
+	distance <- rep(Inf, max(eggs$Number))
+	distance[P1] <- 0
+	parents <- vector("list", max(eggs$Number))
+	found_depth <- Inf
+	
+	while (length(queue) > 0) {
+		# Read off the top of a rolling queue
+		current <- queue[1]
+		queue <- queue[-1]
 		
-		# If everything in this layer is a dead end, then no path exists. Exit.
-		if (numDeadEnds == length(PATH[depth])){
-			PATH <- NULL
-			found <- TRUE
+		# If you've found P2, avoid looping backward to its parents
+		if (distance[current] >= found_depth) next
+		
+		# See if P2 is in the list of mates for the current check
+		# If so, mark it as "found"
+		mateList <- getNumbers(eggs$Name[current], eggs)
+		if (P2 %in% mateList) {
+			parents[[P2]] <- c(parents[[P2]], current)
+			found_depth <- distance[current] + 1
 		}
-	} # end while not found
-	return(PATH)
-} # end function
+		
+		# If P2 not found in this layer, restrict search to those who cross groups
+		mateList <- checkMultiGroup(mateList, eggs)
+		
+		for (neighbor in mateList) {
+			new_dist <- distance[current] + 1
+			
+			# Where "current" is a parent and "neighbor" is a child:
+			# If this is the first time considering this child,
+			# mark its distance from P1 and who the parent is,
+			# then add it to the queue to be considered on the next while loop
+			if (distance[neighbor] == Inf) {
+				distance[neighbor] <- new_dist
+				parents[[neighbor]] <- current
+				queue <- c(queue, neighbor)
+			}
+			# If we've already considered this child in this layer,
+			# don't duplicate it in the queue,
+			# but do add this new parent-child occurrence to the 'parents' object
+			else if (distance[neighbor] == new_dist) {
+				parents[[neighbor]] <- c(parents[[neighbor]], current)
+			}
+			# The third, unspecified option is to avoid looping backward:
+			# if this child has a SHORTER distance from P1 than the current parent,
+			# that means we encountered it in a previous loop. So skip it.
+		}
+	}
+	
+	# The while loop will eventually quit by running out of unconsidered nodes
+	# If P2 was never found, return NULL
+	if (is.infinite(found_depth)) return(NULL)
+	
+	# Otherwise, return a list of lists containing all paths from P1 to P2
+	# Start at P2 and work backwards, through the "parents" list, to P1
+	# `parents` is a list of 251 lists of parent nodes that led to that row,
+	# i.e. the only parents listed are potential children of P1
+	# This inherently contains dead ends from P1's perspective,
+	# BUT if we start at P2 and work backward, we only consider valid paths to P1.
+	paths <- list(c(P2))
+	for (i in 1:found_depth){
+		new_paths <- list()
+		for (path in paths) {
+			head_node <- path[1]
+			for (p in parents[[head_node]]) {
+						new_paths <- append(new_paths, list(c(p, path)))
+					}
+			} # end for path
+		paths <- new_paths
+	} # end while
+	
+	return(paths)
+}
+
 
 ## FUNCTION 5: Filter a list of Pokemon to only those in multiple egg groups
 checkMultiGroup <- function(checklist, eggs){
