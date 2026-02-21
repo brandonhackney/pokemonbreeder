@@ -17,6 +17,7 @@ __pycache__/
 ## Project-specific exclusions
 *.xlsx
 *.html
+*.rds
 
 # Development-related
 notes.txt

@@ -1,8 +1,12 @@
-# Load libraries here
+## Load libraries
 library(tidyverse)
 library(dplyr)
+library(httr)
+library(jsonlite)
 
-# Define an environment variable to contain backend data, with getter functions
+## Set environment variables
+# Define something persistent to contain backend data, fill it with said data,
+# and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
 initData <- function(){
 	.pokeData$eggs <- getEggGroups()
@@ -14,9 +18,19 @@ getEggs <- function(){
 getGraph <- function(){
 	.pokeData$graph
 }
+# This happens at an earlier step, so it gets its own function
+initGens <- function(){
+	.pokeData$genList <- loadGens()
+}
+getGens <- function(){
+	.pokeData$genList
+}
 
-## Function 1: Get a tibble listing which egg groups each Pokemon belongs to
+## Data manipulation functions
+# Once we have data loaded into memory, do something with it
 getEggGroups <- function(){
+# Get a tibble listing which egg groups each Pokemon belongs to
+
 # Read in the list of Pokemon
 # This should be a 251x2 list of Pokemon names and numbers
 f1 <- 'dex.tsv'
@@ -55,8 +69,8 @@ return(Eggs)
 # done!
 }
 
-## Function 2: Generate tile contents based on Pokedex number
 getCard <- function(i){
+	# Generate UI tile contents based on input Pokedex number
 	eggs <- getEggs()
 	# validate input
 	if (!is.numeric(i)){
@@ -83,8 +97,8 @@ getCard <- function(i){
 	}
 }
 
-## Function 3: Output a list of Pokemon numbers based on input Pokemon name
 getNumbers <- function(Pokemon){
+	# Output a list of Pokemon numbers based on input Pokemon name
 	eggs <- getEggs()
 	# Find the columns used by this Pokemon
 	active_cols <- eggs %>% 
@@ -133,11 +147,9 @@ getNumbers <- function(Pokemon){
 	return(candidates)
 }
 
-## Function 4: Find the shortest breeding chain from P1 to P2, if possible.
-# If multiple options of the same length exist, returns them all.
 findChain <- function(P1, P2){
 	# Given the NUMBERS of two Pokemon P1 and P2,
-	# return a list of numbers showing how to chain from P1 to P2
+	# return a list of numbers giving the shortest breeding chain from P1 to P2
 	# If there are multiple options of the same length, returns a list of lists
 	# if P2 is unreachable from P1, returns NULL instead
 	
@@ -223,19 +235,153 @@ findChain <- function(P1, P2){
 	return(paths)
 }
 
-
-## FUNCTION 5: Filter a list of Pokemon to only those in multiple egg groups
 checkMultiGroup <- function(checklist){
-		getEggs() %>% 
-		filter(Number %in% checklist) %>% 
-		filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
-		pull(Number)
+	# Filter a list of Pokemon to only those in multiple egg groups
+	getEggs() %>% 
+	filter(Number %in% checklist) %>% 
+	filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
+	pull(Number)
 		
 }
 
-## Convert a list of Pokemon names to Pokemon numbers
 name2num <- function(nameList){
+	# Convert a list of Pokemon names to Pokemon numbers
 	getEggs() %>% 
 		filter(Name %in% nameList) %>% 
 		pull(Number)
+}
+
+
+## Data access functions
+# Functions that decide whether to read from disk or pull from the internet
+loadGens <- function(){
+	# Get the list of game generations, e.g. Red/Blue is "generation-i"
+	fname <- "generations.rds"
+	if (file.exists(fname)){
+		gens <- readRDS(fname)
+	} else {
+		gens <- getGensFromAPI()
+		saveRDS(gens, fname)
+	}
+	return(gens)
+}
+
+loadMovesets <- function(generation, subgroup){
+	# Get moveset data, e.g. how Pikachu can learn Thunderbolt but not Fly
+	# Input 1 is a string from getGens()
+	# Input 2 is a string from getVG()
+	
+	if (missing(subgroup)){
+		# Grab the first available subgroup by default
+		vg <- getVGfromAPI(generation)
+		subgroup <- vg$name[1]
+	}
+	
+	fname <- paste0("movesets_", subgroup, ".rds")
+	if (file.exists(fname)){
+		moves <- readRDS(fname)
+	} else {
+		moves <- getMovesFromAPI(generation, subgroup)
+		saveRDS(moves, fname)
+	}
+	return(moves)
+}
+
+## Data acquisition functions
+# Functions that specifically pull from the internet
+
+hitAPI <- function(pURL){
+	# Given a URL that points to a JSON file, grab the data
+	pURL %>% 
+		GET() %>% 
+		content("text", encoding = "UTF-8") %>% 
+		fromJSON()
+}
+
+getGensFromAPI <- function(){
+	# Pull a list of Pokemon game "generations" from the internet
+	# e.g. Red, Blue, Yellow are considered "Generation 1"
+	glist <- "https://pokeapi.co/api/v2/generation/" %>% 
+		hitAPI()
+	glist$results
+	# output has properties $name and $url
+	# output$name[1] should be 'generation-i'
+}
+
+getVGfromAPI <- function(generation){
+	# Get the list of "version groups" available in this generation
+	# For example, Gen2 has `gold-silver` and `crystal`
+	dat <- getGenURL %>% 
+		hitAPI()
+	dat$version_groups
+	# Result should be a table with name and url components
+	# The url will be used later by getDataFromAPI
+}
+
+getMovesFromAPI <- function(generation, subgroup){
+	# Pull a list of legal moves per Pokemon in a given game generation
+	# Input 1 should be a string as pulled from getGenList()
+	# Input 2 is a string specifying a "version group", e.g. "red-blue"
+	
+	# First, get the list of legal pokemon by concatenating successive generations
+	genList <- getCumulativeGens(generation)
+	dex <- c()
+	for (gen in genList) {
+		dat <- getGenURL(gen) %>% 
+			hitAPI()
+		dex <- c(dex, dat$pokemon_species$name)
+	}
+	dex <- unique(dex)
+	
+	# Next, iterate through each pokemon in dex to get its legal moves
+	results <- list()
+	for (p in dex) {
+		message("Getting moves for ", p)
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon/", p) %>% 
+			hitAPI()
+		for (j in 1:nrow(dat$moves)) {
+			# this will have all moves that are legal in ANY game
+			# subset to just the ones that are legal for the selected versions
+			move_name <- dat$moves$move$name[j]
+			version_details <- dat$moves$version_group_details[[j]]
+			
+			valid_entries <- version_details[
+				version_details$version_group$name == subgroup,
+			]
+			if (nrow(valid_entries) > 0) {
+				# iteratively write each legal pokemon-move combo into a tall dataframe
+				for (i in seq_len(nrow(valid_entries))) {
+					
+					results[[length(results) + 1]] <- data.frame(
+						pokemon = p,
+						move = move_name,
+						method = valid_entries$move_learn_method$name[i],
+						stringsAsFactors = FALSE
+					)
+				} # for each move legal to this version of the game
+			}
+		} # for all possible moves this pokemon has
+	} # for each pokemon in the dex
+	
+	# some final step
+	do.call(rbind, results) %>% return()
+	
+}
+
+getGenList <- function(){
+	# Returns a list of game generation names, e.g. 'generation-i'
+	gens <- getGens()
+	return(gens$name)
+}
+
+getCumulativeGens <- function(targetGen){
+	gens <- getGens()
+	ind <- which(gens$name == targetGen)
+	gens$name[1:ind]
+}
+
+getGenURL <- function(generation){
+	getGens() %>% 
+		filter(name == generation) %>% 
+		pull(url)
 }
