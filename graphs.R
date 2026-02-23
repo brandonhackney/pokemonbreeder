@@ -1,5 +1,6 @@
 library(tidyverse)
 library(igraph)
+library(visNetwork)
 
 # Convert table of egg group memberships into a graph structure
 # Each Pokemon is a node, and edges imply breeding compatibility
@@ -121,4 +122,14 @@ getPath <- function(A, B){
 	# So we have to slice that first element to actually get vpath.
 	# Then access the "name" attribute from within THAT
 	return(result$vpath[[1]]$name)
+}
+
+# Visualize the graph
+renderGraph <- function(eggGraph){
+	data <- toVisNetworkData(eggGraph)
+	visNetwork(nodes = data$nodes, edges = data$edges) %>% 
+		visIgraphLayout(layout = "layout_nicely") %>% 
+		visNodes(size = 20) %>% 
+		visEdges(arrows = "to") %>% 
+		visOptions(highlightNearest = list(enabled = T, hover =T))
 }
