@@ -399,6 +399,137 @@ getPokedexFromAPI <- function(generation){
 	dex <- unique(dex)
 }
 
+getSpeciesTable <- function(generation){
+	# Build or load the "species table", a dataframe with more info than the Dex
+	fname <- sprintf('bigtable_%s.rds', generation)
+	if (file.exists(fname)){
+		# Load it if we already have it
+		dex <- readRDS(fname)
+	} else {
+		# Pull information from the internet and save to disk
+		message("Building Species Table for ", generation)
+		dex <- buildSpeciesTable(generation)
+	}
+	return(dex)
+}
+
+buildSpeciesTable <- function(generation){
+	# Given an input generation, e.g. "generation-ii", build a "Pokedex"
+	# Returns a tibble listing Pokemon names, numbers, egg groups, and evolutions
+	# Start with the list of available Pokemon
+	dex <- getPokedex(generation)
+	master <- tibble(
+		fname = "",
+		Name = "",
+		Number = 0,
+		GenderRatio = 0,
+		EggGroups = list(),
+		EvolutionChain = 0,
+		EvolvesFrom = "",
+		EvolveDetails = list()
+	)
+	# Now iterate through that list to extract key info
+	for (pok in dex){
+		# pok is a "reference name" used by PokeAPI
+		# use it to extract a formatted name for display, along with other info
+		message(pok)
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon-species/", pok) %>% 
+			hitAPI()
+		# evolution chain number: an index specific to PokeAPI
+		evChNum <- dat$evolution_chain$url %>%
+			strsplit("/") %>%
+			unlist() %>% 
+			tail(n = 1) %>%
+			as.numeric()
+		# previous evolution form
+		prevForm <- dat$evolves_from_species$name
+		evoDat <- getEvoDetails(evChNum, pok)
+		# Insert data into output var
+		master <- master %>% 
+			add_row(
+				fname = pok,
+				Name = dat$names %>% 
+					filter(language$name == "en") %>% 
+					pull(name),
+				Number = dat$id,
+				GenderRatio = dat$gender_rate,
+				EggGroups = dat$egg_groups$name %>% list(),
+				EvolutionChain = evChNum,
+				EvolvesFrom = prevForm,
+				EvolveDetails = evoDat
+			)
+	}
+	# Sort table by pokedex number then output
+	master %>% 
+		arrange(Number) %>% 
+		return()
+}
+
+getEvoDetails <- function(evoNum, pok){
+	# Get info about evolution requirements to get to the target pokemon
+	# e.g. for Jolteon, use a Thunder Stone on Eevee
+	# Needs the number of the "evolution_chain" pulled from the species JSON
+	# Output is another JSON with lots of fields, which needs to be parsed later
+	
+	# Get evolution chain JSON
+	evo <- paste0("https://pokeapi.co/api/v2/evolution-chain/",evoNum) %>% 
+		hitAPI()
+	# Find out how the selected pokemon evolves from its previous form
+	if (evo$chain$species$name == pok){
+		# then this is the base form. return a default value
+		return(list(NA))
+	} else {
+		# Step through the chain to find the target pokemon's details
+		searchEvoStack(evo$chain, pok) %>% 
+			return()
+	}
+}
+
+# Recursive function to step through all possible nodes in a chain
+searchEvoStack <- function(chain, target){
+	# Check if the current node in an evolutionary chain has the target Pokemon
+	# If so, return the evolution details field
+	# Otherwise, step through any nodes nested under the current one
+	currentName <- chain$species$name
+	if (currentName == target){
+		result <- chain$evolution_details
+		return(result) # may be a list
+	}
+	# If the current node isn't the target, check if we can expand it
+	nextChain <- chain$evolves_to
+	if (!"evolves_to" %in% colnames(nextChain)){
+		# assume it's a 1x1 list that needs to be coerced to dataframe
+		nextChain <- nextChain %>% as.data.frame()
+	}
+	n <- nextChain %>% nrow()
+	if (is.null(n) || n == 0){
+		# This branch has hit a dead end
+		return(NA)
+	}
+	# If the current node is not the target, but has 1+ nested nodes to expand,
+	# recursively call this function for each option
+	# this guarantees drilling down until you find the target
+	
+		# If there are options, step through them
+		for (i in 1:n){
+			# Handle odd nesting
+			if (n == 1){
+				nc <- nextChain
+			} else{
+				nc <- nextChain[i,]
+			}
+			result <- searchEvoStack(nc, target)
+			# If current iteration is the target, return it
+			# but is.na() may have multiple results, so defensive coding is:
+			if (any(!is.na(result))){
+				return(result)
+			}
+		} # end for branches
+	# If you reach this point, then none of the nested nodes had the target
+	# Return NA and let the previous layer move on to its next nested node
+	return(NA)
+}
+
 getGenList <- function(){
 	# Returns a list of game generation names, e.g. 'generation-i'
 	gens <- getGens()
