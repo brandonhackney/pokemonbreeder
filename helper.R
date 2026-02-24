@@ -441,9 +441,17 @@ buildSpeciesTable <- function(generation){
 			unlist() %>% 
 			tail(n = 1) %>%
 			as.numeric()
-		# previous evolution form
+		# Identify previous evolution form and what it takes to evolve
 		prevForm <- dat$evolves_from_species$name
-		evoDat <- getEvoDetails(evChNum, pok)
+		if (!is.null(prevForm) && prevForm %in% dex){
+			evoDat <- getEvoDetails(evChNum, pok)
+		} else {
+			# If the identified evolution isn't valid for this gen,
+			# replace with default values
+			prevForm = NULL
+			evoDat = NULL
+		}
+		
 		# Insert data into output var
 		master <- master %>% 
 			add_row(
