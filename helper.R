@@ -295,7 +295,7 @@ hitAPI <- function(pURL){
 	pURL %>% 
 		GET() %>% 
 		content("text", encoding = "UTF-8") %>% 
-		fromJSON()
+		fromJSON(simplifyVector = FALSE)
 }
 
 getGensFromAPI <- function(){
@@ -324,14 +324,7 @@ getMovesFromAPI <- function(generation, subgroup){
 	# Input 2 is a string specifying a "version group", e.g. "red-blue"
 	
 	# First, get the list of legal pokemon by concatenating successive generations
-	genList <- getCumulativeGens(generation)
-	dex <- c()
-	for (gen in genList) {
-		dat <- getGenURL(gen) %>% 
-			hitAPI()
-		dex <- c(dex, dat$pokemon_species$name)
-	}
-	dex <- unique(dex)
+	dex <- getPokedex(generation)
 	
 	# Next, iterate through each pokemon in dex to get its legal moves
 	results <- list()
@@ -366,6 +359,37 @@ getMovesFromAPI <- function(generation, subgroup){
 	# some final step
 	do.call(rbind, results) %>% return()
 	
+}
+
+getPokedex <- function(generation){
+	# Load or download a list of available Pokemon in the given generation
+	fname <- sprintf('pokedex_%s.rds', generation)
+	if (file.exists(fname)){
+		# Load it if we already have it
+		dex <- readRDS(fname)
+	} else {
+		# Pull information from the internet and save to disk
+		message("Building Pokedex for ", generation)
+		dex <- getPokedexFromAPI(generation)
+		saveRDS(dex, fname)
+	}
+	return(dex)
+}
+
+getPokedexFromAPI <- function(generation){
+	# Given an input generation, e.g. "generation-ii", build a "Pokedex"
+	# Returns an unordered, unformatted list of possible Pokemon
+	# Used by other functions to grab more data, build dataframes, etc.
+	genList <- getCumulativeGens(generation)
+	dex <- c()
+	for (gen in genList) {
+		dat <- getGenURL(gen) %>% 
+			hitAPI()
+		for (i in dat$pokemon_species){
+			dex <- c(dex, i$name)
+			}
+	}
+	dex <- unique(dex)
 }
 
 getGenList <- function(){
