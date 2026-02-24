@@ -1,7 +1,7 @@
 ## Load libraries
 library(tidyverse)
 library(dplyr)
-library(httr)
+library(httr2)
 library(jsonlite)
 
 ## Set environment variables
@@ -292,10 +292,17 @@ loadMovesets <- function(generation, subgroup){
 
 hitAPI <- function(pURL){
 	# Given a URL that points to a JSON file, grab the data
+	# Establish a local cache to save bandwidth
+	cacheDir <- ".cache"
+	if (!dir.exists(cacheDir)){
+		dir.create(cacheDir)
+	}
+	# httr2 format specifying cacheing
 	pURL %>% 
-		GET() %>% 
-		content("text", encoding = "UTF-8") %>% 
-		fromJSON(simplifyVector = FALSE)
+		request() %>% 
+		req_cache(path = cacheDir) %>% 
+		req_perform() %>% 
+		resp_body_json(simplifyDataFrame = TRUE)
 }
 
 getGensFromAPI <- function(){
