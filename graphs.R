@@ -58,7 +58,7 @@ editGraph <- function(bipGraph){
 		pull(Name)
 	neuterIDs <- eggs %>%
 		unnest(EggGroups) %>% 
-		filter(EggGroups == "indeterminate") %>% 
+		filter(GenderRatio == -1 & !(EggGroups == "no-eggs")) %>% 
 		pull(Name)
 	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
 	neuterEdges <- E(bipGraph)[neuterIDs %--% neuterIDs]

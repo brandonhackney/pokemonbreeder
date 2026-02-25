@@ -108,6 +108,9 @@ getNumbers <- function(Pokemon){
 	# Table is expanded so that pokemon in two groups take up two rows
 	# This makes it a lot easier to index out of, trust me.
 	
+	# Get its gender ratio, where -1 means neuter, otherwise x/8 chance female
+	genderRatio <- eggs$GenderRatio[eggs$Name == Pokemon] %>% unique()
+	
 	# Find the columns used by this Pokemon
 	activeGroups <- eggs %>% 
 		filter(Name == Pokemon) %>% 
@@ -121,8 +124,8 @@ getNumbers <- function(Pokemon){
 		return(0)
 	}
 	# Neuter group can only breed with Ditto, not other members
-	else if ("indeterminate" %in% activeGroups) {
-		# should be 132 but I'll use filtering anyway
+	else if (genderRatio == -1 && !("no-eggs" %in% activeGroups)) {
+		# Ditto's number should be 132 but I'll use filtering anyway
 		n <- eggs %>% filter(Name == "Ditto") %>% pull(Number)
 		return(n)
 	}
@@ -148,11 +151,10 @@ getNumbers <- function(Pokemon){
 	
 	# Final check: All-male species cannot breed with other all-male species,
 	# and the same goes for all-female species
-	inputRatio <- eggs$GenderRatio[eggs$Name == Pokemon] %>% unique()
-	if (inputRatio %in% c(0, 8)){
+	if (genderRatio %in% c(0, 8)){
 		# Skip anything in the same ratio if it has a 0/8 or 8/8 prob of female
 		candidates <- eggs %>% 
-			filter(GenderRatio != inputRatio) %>% 
+			filter(GenderRatio != genderRatio) %>% 
 			filter(Name %in% candidates) %>% 
 			pull(Name) %>% 
 			unique()
