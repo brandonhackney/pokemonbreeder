@@ -55,13 +55,15 @@ editGraph <- function(bipGraph){
 	noEggIDs <- eggs %>%
 		unnest(EggGroups) %>%
 		filter(EggGroups == "no-eggs") %>%
-		pull(Name)
+		pull(Name) %>% 
+		unique()
 	neuterIDs <- eggs %>%
 		unnest(EggGroups) %>% 
 		filter(GenderRatio == -1 & !(EggGroups == "no-eggs")) %>% 
-		pull(Name)
-	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
-	neuterEdges <- E(bipGraph)[neuterIDs %--% neuterIDs]
+		pull(Name) %>% 
+		unique()
+	noEggEdges <- E(bipGraph)[noEggIDs %--% eggs$Name]
+	neuterEdges <- E(bipGraph)[neuterIDs %--% eggs$Name]
 	
 	# All-female species cannot "father" anything
 	# All-male species cannot "mother" anything
@@ -75,14 +77,16 @@ editGraph <- function(bipGraph){
 	badEdges <- c(noEggEdges, neuterEdges,mmEdges,ffEdges)
 	newGraph <- delete_edges(bipGraph, badEdges)
 	
-	# Finally, add edges for everything that can breed with Ditto
-	# meaning we skip NoEggs and Ditto itself
-	toDittoIDs <- eggs %>%
-		filter(!(Name %in% c(noEggIDs))) %>% 
-		filter(Name != "Ditto") %>% 
-		pull(Name)
-	newEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
-	newGraph <- add_edges(newGraph, newEdges)
+	# Finally, strip out any edges pointing to Ditto
+	# This makes the graph illegible
+	# toDittoIDs <- eggs %>%
+	# 	filter(!(Name %in% c(noEggIDs))) %>% 
+	# 	filter(Name != "Ditto") %>% 
+	# 	pull(Name)
+	# dittoEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
+	toDittoEdges <- E(newGraph)[eggs$Name %--% "Ditto"]
+	fromDittoEdges <- E(newGraph)["Ditto" %--% eggs$Name]
+	newGraph <- delete_edges(newGraph, c(toDittoEdges, fromDittoEdges))
 	
 	return(newGraph)
 }
@@ -134,9 +138,12 @@ insertSprites <- function(nodes){
 renderGraph <- function(eggGraph){
 	data <- toVisNetworkData(eggGraph)
 	nodes <- insertSprites(data$nodes)
+	repList <- list(springLength = 500, springConstant = .02, centralGravity = 0.1)
+	
 	visNetwork(nodes = nodes, edges = data$edges) %>% 
-		visIgraphLayout(layout = "layout_nicely") %>% 
-		visNodes(size = 20) %>% 
-		visEdges(arrows = "to") %>% 
+		visIgraphLayout(layout = "layout_nicely", physics = TRUE) %>% 
+		visNodes(size = 50) %>% 
+		visEdges(arrows = "to") %>%
+		visPhysics(solver = "repulsion", repulsion = repList) %>% 
 		visOptions(highlightNearest = list(enabled = T, hover =T))
 }
