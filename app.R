@@ -11,13 +11,13 @@ eggs <- getEggs()
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_navbar(
-	title = "Pokemon Breeding Assistant",
+	title = "Select mode:",
 	id = "mainNavbar",
 	position = "fixed-bottom",
 	nav_panel(
 		title = "List",
 		page_sidebar(
-			title = "Mate List",
+			title = "Pokemon Breeding Assistant",
 			sidebar = sidebar(
 				selectInput(
 					"Dropdown",
@@ -37,7 +37,7 @@ uiF <- page_navbar(
 	nav_panel(
 		title = "Graph",
 		page_sidebar(
-			title = "Breeding Graph",
+			title = "Pokemon Breeding Assistant",
 			sidebar = sidebar(
 				helpText("You can interact with this graph! Scroll to zoom.
 								 Hovering over a Pokemon highlights its compatible mates.
