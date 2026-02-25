@@ -121,10 +121,20 @@ getPath <- function(A, B){
 	return(result$vpath[[1]]$name)
 }
 
+insertSprites <- function(nodes){
+	# Add fields to the node data to display sprites
+	nodes$shape = "image"
+	for (i in 1:nrow(nodes)){
+		nodes$image[i] = getSprite(nodes$label[i])
+	}
+	return(nodes)
+}
+
 # Visualize the graph
 renderGraph <- function(eggGraph){
 	data <- toVisNetworkData(eggGraph)
-	visNetwork(nodes = data$nodes, edges = data$edges) %>% 
+	nodes <- insertSprites(data$nodes)
+	visNetwork(nodes = nodes, edges = data$edges) %>% 
 		visIgraphLayout(layout = "layout_nicely") %>% 
 		visNodes(size = 20) %>% 
 		visEdges(arrows = "to") %>% 
