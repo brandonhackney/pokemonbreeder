@@ -10,21 +10,47 @@ setActiveGen("generation-ii")
 eggs <- getEggs()
 
 # A function that organizes the UI elements of the shiny app	
-uiF <- page_sidebar(
+uiF <- page_navbar(
 	title = "Pokemon Breeding Assistant",
-	sidebar = sidebar(
-		helpText("List all possible mates for the selected Pokemon"),
-		selectInput(
-			"Dropdown",
-			label = "Select a Pokemon",
-			choices = eggs$Name
-		),
-		uiOutput("selectionCard")
-	),
-		textOutput("Tally"),
-		uiOutput("cardContainer")
-
+	id = "mainNavbar",
+	position = "fixed-bottom",
+	nav_panel(
+		title = "List",
+		page_sidebar(
+			title = "Mate List",
+			sidebar = sidebar(
+				selectInput(
+					"Dropdown",
+					label = "Selected Pokemon:",
+					choices = eggs$Name
+				),
+				uiOutput("selectionCard"),
+				helpText("List all possible mates for the selected Pokemon.
+								 This displays general compatibility, without considering
+								 whether the selected Pokemon acts as the father or mother.")
+			),
+			textOutput("Tally"),
+			uiOutput("cardContainer")
+		)
+	), # nav_panel 1
 	
+	nav_panel(
+		title = "Graph",
+		page_sidebar(
+			title = "Breeding Graph",
+			sidebar = sidebar(
+				helpText("You can interact with this graph! Scroll to zoom.
+								 Hovering over a Pokemon highlights its compatible mates.
+								 Clicking locks this selection.
+								 You can click and drag nodes to help rearrange as needed.",
+								 p(),
+								 "Blue lines represent breeding compatibility,
+								 yellow lines represent evolutionary chains."),
+			),
+			visNetworkOutput("fullGraph")
+		)
+		
+	), # nav_panel 2
 )
 
 # A function that runs code based on UI selections
@@ -72,6 +98,11 @@ serverF <- function(input, output) {
 			"
 		)
 		do.call(flowLayout, card_list)
+	})
+	
+	# Render the visNetwork graph
+	output$fullGraph <- renderVisNetwork({
+		getGraph() %>% renderGraph()
 	})
 }
 
