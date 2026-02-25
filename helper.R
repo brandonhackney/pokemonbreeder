@@ -9,18 +9,14 @@ library(jsonlite)
 # and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
 initData <- function(){
-	.pokeData$eggs <- getEggGroups()
+	.pokeData$eggs <- getSpeciesTable()
 	.pokeData$graph <- buildGraph()
-	.pokeData$table <- getSpeciesTable()
 }
 getEggs <- function(){
 	.pokeData$eggs
 }
 getGraph <- function(){
 	.pokeData$graph
-}
-getTable <- function() {
-	.pokeData$table
 }
 
 setActiveGen <- function(generation){
@@ -48,53 +44,12 @@ getGens <- function(){
 
 ## Data manipulation functions
 # Once we have data loaded into memory, do something with it
-getEggGroups <- function(){
-# Get a tibble listing which egg groups each Pokemon belongs to
-
-# Read in the list of Pokemon
-# This should be a 251x2 list of Pokemon names and numbers
-f1 <- 'dex.tsv'
-pokedex <- read.delim(f1, header = TRUE, sep = '\t')
-
-# Read in the ugly table of egg groups
-# This should have 16 columns with unequal numbers of rows
-# Each column is a list of Pokemon in an "egg group"
-f2 <- 'groups.csv'
-bgroups <- read.csv(f2, header = TRUE)
-
-# Initialize a 0x16 table
-# This will basically checkmark whether the Pokemon in row x belongs to group y
-eggMatrix <- bgroups[FALSE,]
-
-# Write into the boolean table cell by cell
-# Check each column in bgroups for this row's value, return a boolean
-for (i in seq_along(pokedex$Name)) {
-	pok <- pokedex$Name[i]
-	for (j in seq_along(colnames(bgroups))) {
-		eggMatrix[i,j] <- any(str_detect(bgroups[,j], pok))
-	}
-}
-
-# Append the matrix of booleans to the Pokedex so that the rows are labeled
-Eggs <- bind_cols(pokedex, eggMatrix)
-# Convert to true booleans, since original columns were chars
-Eggs <- Eggs %>% 
-	mutate(
-		across(
-			-(Number:Ratio),
-			~ .x == "TRUE"
-		)
-	)
-return(Eggs)
-# done!
-}
-
 getCard <- function(i){
 	# Generate UI tile contents based on input Pokedex number
 	eggs <- getEggs()
 	# validate input
 	if (!is.numeric(i)){
-		i <- name2num(i, eggs)
+		i <- name2num(i)
 	}
 	if (i == 0) {
 		# No results: return a unique card
@@ -138,57 +93,69 @@ getEggNames <- function(groupName){
 	# Given the big species table, which contains egg group names in lists,
 	# subset the table to just those in that group.
 	# Requires expanding the lists and then filtering
-	getTable() %>% 
+	getEggs() %>% 
 		unnest(EggGroups) %>% 
 		filter(EggGroups == groupName)
 }
 
 getNumbers <- function(Pokemon){
 	# Output a list of Pokemon numbers based on input Pokemon name
-	eggs <- getEggs()
+	# Represents the list of breeding "neighbors", i.e. compatibility
+	# These are undirected connections:
+	# doesn't capture the fact that e.g. Jynx can't produce a baby Abra
+	eggs <- getEggs() %>% 
+		unnest(EggGroups)
+	# Table is expanded so that pokemon in two groups take up two rows
+	# This makes it a lot easier to index out of, trust me.
+	
 	# Find the columns used by this Pokemon
-	active_cols <- eggs %>% 
+	activeGroups <- eggs %>% 
 		filter(Name == Pokemon) %>% 
-		select(-(Number:Ratio)) %>% 
-		select(where(isTRUE)) %>% 
-		colnames()
+		pull(EggGroups)
 	# Intercept if it belongs to certain groups
 	# Ditto is #132
 	# Ditto can breed with anything besides Ditto and NoEggs
 	
 	# NoEggs cannot breed at all, whether with itself or with Ditto
-	if ("NoEgg" %in% active_cols) {
+	if ("no-eggs" %in% activeGroups) {
 		return(0)
 	}
-	# Neuter can only breed with Ditto, not other members
-	else if ("Neuter" %in% active_cols) {
-		return(132)
+	# Neuter group can only breed with Ditto, not other members
+	else if ("indeterminate" %in% activeGroups) {
+		# should be 132 but I'll use filtering anyway
+		n <- eggs %>% filter(Name == "Ditto") %>% pull(Number)
+		return(n)
 	}
 	# Ditto can breed with anything besides NoEggs and other Ditto
-	else if ("Ditto" %in% active_cols) {
-		active_cols <- eggs %>% 
-			select(-c(Number, Name, Ratio, NoEgg, Ditto)) %>% 
-			colnames()
+	else if ("ditto" %in% activeGroups) {
+		activeGroups <- eggs %>% 
+			select(EggGroups) %>% 
+			unique() %>% 
+			filter(!(EggGroups %in% c("ditto", "no-eggs"))) %>% 
+			pull(EggGroups)
+		
 	}
 	# Everything else can also breed with Ditto
 	else {
-		active_cols <- active_cols %>% 
-			append("Ditto")
+		activeGroups <- activeGroups %>% 
+			append("ditto")
 	}
-	# If we didn't break early, get that Pokemon's egg groups AND Ditto
+	# If we didn't break early, get everything in the active groups
 	candidates <- eggs %>% 
-		filter(if_any(all_of(active_cols), ~ .x)) %>% 
-		pull(Number)
+		filter(EggGroups %in% activeGroups) %>% 
+		pull(Number) %>% 
+		unique()
 	
 	# Final check: All-male species cannot breed with other all-male species,
 	# and the same goes for all-female species
-	inputRatio <- eggs$Ratio[eggs$Name == Pokemon]
-	if (inputRatio == 0){
-		return(candidates) 
-	}
-	else {
-		# Skip anything in the same ratio if it's 1 or 2
-		candidates <- candidates[eggs$Ratio[candidates] != inputRatio]
+	inputRatio <- eggs$GenderRatio[eggs$Name == Pokemon] %>% unique()
+	if (inputRatio %in% c(0, 8)){
+		# Skip anything in the same ratio if it has a 0/8 or 8/8 prob of female
+		candidates <- eggs %>% 
+			filter(GenderRatio != inputRatio) %>% 
+			filter(Name %in% candidates) %>% 
+			pull(Name) %>% 
+			unique()
 	}
 	return(candidates)
 }
@@ -201,8 +168,8 @@ findChain <- function(P1, P2){
 	
 	eggs <- getEggs()
 	# Defensive coding
-	if (!is.numeric(P1)) P1 <- name2num(P1, eggs)
-	if (!is.numeric(P2)) P2 <- name2num(P2, eggs)
+	if (!is.numeric(P1)) P1 <- name2num(P1)
+	if (!is.numeric(P2)) P2 <- name2num(P2)
 	if (P1 == 0 || P2 == 0) return(NULL)
 	if (P1 == P2) return(list(c(P1)))
 	
@@ -284,10 +251,10 @@ findChain <- function(P1, P2){
 checkMultiGroup <- function(checklist){
 	# Filter a list of Pokemon to only those in multiple egg groups
 	getEggs() %>% 
-	filter(Number %in% checklist) %>% 
-	filter(rowSums(across(Dragon:Ditto)) > 1) %>% 
-	pull(Number)
-		
+		filter(Number %in% checklist) %>% 
+		unnest(EggGroups) %>% 
+		filter(duplicated(Name)) %>% 
+		pull(Number)
 }
 
 name2num <- function(nameList){

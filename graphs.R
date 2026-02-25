@@ -6,26 +6,13 @@ library(visNetwork)
 # Each Pokemon is a node, and edges imply breeding compatibility
 buildGraph <- function(){
 	eggs <- getEggs()
-	# Get just the logical columns (i.e. egg groups) to be our "edges"
-	logicals <- eggs %>% 
-		select(-(Number:Ratio)) %>% 
-		rename(GDitto = Ditto)
-	# Rename the Ditto group so that you have unique node names
 	
+	# Get a two-column dataframe where each row is an edge between cols 1 and 2
+	edgesNamed <- eggs %>% 
+		unnest(EggGroups) %>% 
+		select(Name, EggGroups)
 	
-	# Convert logical table into a list of the TRUE indices (ie row/col)
-	# This defines graph edges between each Pokemon and their group indices
-	# It does NOT yet define edges between individual Pokemon in those groups
-	edges <- logicals %>% 
-		as.matrix() %>% 
-		which(arr.ind = TRUE)
-	
-	# Convert indices to names
-	edgesNamed <- data.frame(
-		Pokemon = eggs$Name[edges[,1]],
-		EggGroup = names(logicals)[edges[,2]]
-	)
-	
+	groupList <- unique(edgesNamed$EggGroups)
 	# Flatten out into a single-dimension vector, how igraph expects edge lists
 	edgeVec <- as.vector(t(edgesNamed))
 
@@ -33,9 +20,9 @@ buildGraph <- function(){
 	# so groups are considered vertices, indistinguishable from Pokemon.
 	# Thus, you need to indicate which "type" of vertex each one is.
 	numPok <- nrow(eggs)
-	numGrp <- ncol(logicals)
+	numGrp <- length(groupList)
 	type <- c(rep(FALSE,numPok), rep(TRUE,numGrp))
-	names(type) <- c(eggs$Name, colnames(logicals))
+	names(type) <- c(eggs$Name, groupList)
 	
 	# Create the igraph structure
 	# "Bipartite" means edges only go from one type (or "part") to another
@@ -65,15 +52,21 @@ editGraph <- function(bipGraph){
 	bipGraph <- add_edges(bipGraph, rep(V(bipGraph), each = 2))
 	
 	# Completely disconnect everything in NoEggs AND Neuter
-	noEggIDs <- eggs$Name[eggs$NoEgg == TRUE]
-	neuterIDs <- eggs$Name[eggs$Neuter == TRUE]
+	noEggIDs <- eggs %>%
+		unnest(EggGroups) %>%
+		filter(EggGroups == "no-eggs") %>%
+		pull(Name)
+	neuterIDs <- eggs %>%
+		unnest(EggGroups) %>% 
+		filter(EggGroups == "indeterminate") %>% 
+		pull(Name)
 	noEggEdges <- E(bipGraph)[noEggIDs %--% noEggIDs]
 	neuterEdges <- E(bipGraph)[neuterIDs %--% neuterIDs]
 	
 	# All-female species cannot "father" anything
 	# All-male species cannot "mother" anything
-	femaleIDs <- eggs$Name[eggs$Ratio == 1]
-	maleIDs <- eggs$Name[eggs$Ratio == 2]
+	femaleIDs <- eggs$Name[eggs$GenderRatio == 8]
+	maleIDs <- eggs$Name[eggs$GenderRatio == 0]
 	# Find edges where females are "fathers" and vice versa
 	ffEdges <- E(bipGraph)[.from(femaleIDs)]
 	mmEdges <- E(bipGraph)[.to(maleIDs)]
@@ -83,7 +76,11 @@ editGraph <- function(bipGraph){
 	newGraph <- delete_edges(bipGraph, badEdges)
 	
 	# Finally, add edges for everything that can breed with Ditto
-	toDittoIDs <- eggs$Name[eggs$NoEgg == FALSE & eggs$Ditto == FALSE]
+	# meaning we skip NoEggs and Ditto itself
+	toDittoIDs <- eggs %>%
+		filter(!(Name %in% c(noEggIDs))) %>% 
+		filter(Name != "Ditto") %>% 
+		pull(Name)
 	newEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
 	newGraph <- add_edges(newGraph, newEdges)
 	

@@ -5,10 +5,13 @@ that allows you to pick one of the 251 Pokemon in Gold & Silver versions,
 then returns a visual report of which other Pokemon it can "breed" with.
 The game has certain rules about breeding that make this slightly more complicated
 than just filtering a table.
+
+Data is initially pulled via [PokeAPI](https://pokeapi.co/); sprites from [Serebii.net](https://serebii.net/).
+Everything is then cached locally to improve performance.
     
 ## How to run
 
-Required libraries: shiny, bslib, tidyverse
+Required libraries: `shiny`, `bslib`, `tidyverse`, `igraph`, `visNetwork`, `httr2`, `jsonlite`
 
 Clone this repo, open `app.R` in [RStudio](https://posit.co/download/rstudio-desktop/),
 and click the "Run App" button.
@@ -29,9 +32,7 @@ But feel free to fork and expand for your own purposes.
 
 ## Manifest
 
-* `dex.tsv`: a list of all Pokemon in numerical order.
-* `groups.csv` has each "egg group"" as a column, with an unequal number of rows per column,
-listing the Pokemon in each group by name.
-* `readme.md`: this document.
-* `helper.R`: R code for transforming the data
 * `app.R`: R code controlling the GUI
+* `helper.R`: R code for accessing and transforming the data
+* `graphs.R`: R code specific to graph network methods
+* `readme.md`: this document.
