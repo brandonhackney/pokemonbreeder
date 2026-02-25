@@ -11,6 +11,7 @@ library(jsonlite)
 initData <- function(){
 	.pokeData$eggs <- getEggGroups()
 	.pokeData$graph <- buildGraph()
+	.pokeData$table <- getSpeciesTable()
 }
 getEggs <- function(){
 	.pokeData$eggs
@@ -18,6 +19,25 @@ getEggs <- function(){
 getGraph <- function(){
 	.pokeData$graph
 }
+getTable <- function() {
+	.pokeData$table
+}
+
+setActiveGen <- function(generation){
+	.pokeData$generation <- generation
+	initData()
+}
+getActiveGen <- function(){
+	.pokeData$generation
+}
+
+setActiveVersion <- function(vg){
+	.pokeData$vg <- vg
+}
+getActiveVersion <- function(){
+	.pokeData$vg
+}
+
 # This happens at an earlier step, so it gets its own function
 initGens <- function(){
 	.pokeData$genList <- loadGens()
@@ -90,11 +110,37 @@ getCard <- function(i){
 	else {
 		myCard <- card(
 			card_image(
-				sprintf("https://serebii.net/pokearth/sprites/gold/%03i.png",eggs$Number[i])
+				getSprite(eggs$Number[i])
 			),
 			card_footer(eggs$Name[i])
 		)
 	}
+}
+
+getSprite <- function(number){
+	# Determine the URL for the selected Pokemon's sprite
+	# Depends on selected game generation, potentially game version as well
+	if (!is.numeric(number)){
+		number <- name2num(number)
+	}
+	generation <- getActiveGen()
+	vg <- getActiveVersion()
+	if (generation == "generation-ii" && vg == "gold-silver"){
+		# It has options other than the version group, so manually pick one
+		vg = "gold"
+	}
+	webPath <- sprintf("https://serebii.net/pokearth/sprites/%s/%03i.png", vg, number)
+	
+	return(webPath)
+}
+
+getEggNames <- function(groupName){
+	# Given the big species table, which contains egg group names in lists,
+	# subset the table to just those in that group.
+	# Requires expanding the lists and then filtering
+	getTable() %>% 
+		unnest(EggGroups) %>% 
+		filter(EggGroups == groupName)
 }
 
 getNumbers <- function(Pokemon){
@@ -298,11 +344,20 @@ hitAPI <- function(pURL){
 		dir.create(cacheDir)
 	}
 	# httr2 format specifying cacheing
-	pURL %>% 
+	resp <- pURL %>% 
 		request() %>% 
 		req_cache(path = cacheDir) %>% 
-		req_perform() %>% 
+		req_perform() 
+	# Parse response
+	ctype <- resp %>% resp_content_type()
+	if (ctype == "application/json"){
+	output <- resp %>% 
 		resp_body_json(simplifyDataFrame = TRUE)
+	return(output)
+	}
+	else {
+		stop("Received unexpected API content of type ", ctype)
+	}
 }
 
 getGensFromAPI <- function(){
@@ -392,16 +447,17 @@ getPokedexFromAPI <- function(generation){
 	for (gen in genList) {
 		dat <- getGenURL(gen) %>% 
 			hitAPI()
-		for (i in dat$pokemon_species){
-			dex <- c(dex, i$name)
+		for (i in dat$pokemon_species$name){
+			dex <- c(dex, i)
 			}
 	}
 	dex <- unique(dex)
 }
 
-getSpeciesTable <- function(generation){
+getSpeciesTable <- function(){
+	generation <- getActiveGen()
 	# Build or load the "species table", a dataframe with more info than the Dex
-	fname <- sprintf('bigtable_%s.rds', generation)
+	fname <- sprintf('evotable_%s.rds', generation)
 	if (file.exists(fname)){
 		# Load it if we already have it
 		dex <- readRDS(fname)
@@ -409,6 +465,7 @@ getSpeciesTable <- function(generation){
 		# Pull information from the internet and save to disk
 		message("Building Species Table for ", generation)
 		dex <- buildSpeciesTable(generation)
+		saveRDS(dex, fname)
 	}
 	return(dex)
 }

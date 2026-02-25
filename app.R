@@ -1,8 +1,12 @@
 library(shiny)
 library(bslib)
 source("helper.R")
+source("graphs.R")
 
-initData()
+initGens()
+setActiveVersion("gold-silver")
+setActiveGen("generation-ii")
+
 eggs <- getEggs()
 
 # A function that organizes the UI elements of the shiny app	
@@ -55,7 +59,7 @@ serverF <- function(input, output) {
 	
 	output$selectionCard <- renderUI({
 		selCard <- getCard(selectionNumber())
-	})
+	}) %>% bindCache(selectionNumber(), getActiveGen())
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
 	output$cardContainer <- renderUI({
