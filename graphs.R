@@ -184,10 +184,11 @@ renderGraph <- function(eggGraph){
 	data$edges$color.color <- 
 		ifelse(data$edges$type == "evolution", "#FFA500", "#1E90FF")
 	data$edges$width <-
-		ifelse(data$edges$type == "evolution", 4, 1) # makes evo lines thicker
+		ifelse(data$edges$type == "evolution", 4, 0.01) # makes breedinglines real thin
 	data$edges$length <-
 		ifelse(data$edges$type == "evolution", 30, 500)
-	data$nodes
+	data$edges$arrows.to.scaleFactor <-
+		ifelse(data$edges$type == "evolution", 1, 0.5)
 	
 	repList <- list(springLength = 200, springConstant = .005, gravitationalConstant = -120)
 	stabil <- list(enabled = TRUE, iterations = 300)
