@@ -29,6 +29,7 @@ getActiveGen <- function(){
 
 setActiveVersion <- function(vg){
 	.pokeData$vg <- vg
+	findGenOfVersion(vg) %>% setActiveGen()
 }
 getActiveVersion <- function(){
 	.pokeData$vg
@@ -339,10 +340,30 @@ getGensFromAPI <- function(){
 	# output$name[1] should be 'generation-i'
 }
 
+getVGNested <- function(){
+	# Get a full list of possible version groups, nested under their generation
+	# e.g. Gen1 has 'red-blue' and 'yellow', Gen2 has 'gold-silver' and 'crystal'
+	fname <- "vglist.rds"
+	if (file.exists(fname)){
+		output <- readRDS(fname)
+	} else{
+		genList <- getGens()
+		output <- vector(mode = "list", length=nrow(genList))
+		names(output) <- genList$name
+		for (gen in genList$name){
+			vgList <- gen %>% getVGfromAPI()
+			output[[gen]] <- vgList$name
+		}
+		saveRDS(output, fname)
+	}
+	return(output)
+}
+
 getVGfromAPI <- function(generation){
 	# Get the list of "version groups" available in this generation
 	# For example, Gen2 has `gold-silver` and `crystal`
-	dat <- getGenURL %>% 
+	dat <- generation %>% 
+		getGenURL() %>% 
 		hitAPI()
 	dat$version_groups
 	# Result should be a table with name and url components
@@ -562,6 +583,18 @@ searchEvoStack <- function(chain, target){
 	# If you reach this point, then none of the nested nodes had the target
 	# Return NA and let the previous layer move on to its next nested node
 	return(NA)
+}
+
+findGenOfVersion <- function(vg){
+	# Given an input version e.g. "red-blue", identify matching generation
+	# Step through the nested lists and see if the input value is in that row
+	# If so, return the name of that row
+	vgList <- getVGNested()
+	for (i in 1:length(vgList)){
+		if (vg %in% vgList[[i]]){
+			return(names(vgList[i]))
+		}
+	}
 }
 
 getGenList <- function(){

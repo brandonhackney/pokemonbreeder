@@ -4,60 +4,78 @@ source("helper.R")
 source("graphs.R")
 
 initGens()
+vgList <- getVGNested()
+
 setActiveVersion("gold-silver")
-setActiveGen("generation-ii")
 
 eggs <- getEggs()
+# genList <- getGens() %>% pull(name) 
 
 # A function that organizes the UI elements of the shiny app	
-uiF <- page_navbar(
-	title = "Select mode:",
-	id = "mainNavbar",
-	navbar_options = navbar_options(
-		position = "fixed-bottom",
-		collapsible = FALSE
+uiF <- page_sidebar(
+	# Persistent collapsible sidebar to select game generation
+	sidebar = sidebar(
+		selectInput(
+			inputId = "genRadio",
+			label = "Select a game generation",
+			choices = vgList[-1]
+		)
 	),
-	nav_panel(
-		title = "List",
-		page_sidebar(
-			title = "Pokemon Breeding Assistant",
-			sidebar = sidebar(
-				selectInput(
-					"Dropdown",
-					label = "Selected Pokemon:",
-					choices = eggs$Name
+	# Nav pane on bottom to switch between modes e.g. list, graph
+	page_navbar(
+		title = "Select mode:",
+		id = "mainNavbar",
+		header = "Pokemon Breeding Assistant",
+		navbar_options = navbar_options(
+			position = "fixed-bottom",
+			collapsible = FALSE
+		),
+		# Content page 1: List mode
+		nav_panel(
+			title = "List",
+			page_sidebar(
+				# title = "Pokemon Breeding Assistant",
+				sidebar = sidebar(
+					open = "always",
+					selectInput(
+						"Dropdown",
+						label = "Selected Pokemon:",
+						choices = eggs$Name
+					),
+					uiOutput("selectionCard"),
+					helpText("List all possible mates for the selected Pokemon.
+									 This displays general compatibility, without considering
+									 whether the selected Pokemon acts as the father or mother.")
 				),
-				uiOutput("selectionCard"),
-				helpText("List all possible mates for the selected Pokemon.
-								 This displays general compatibility, without considering
-								 whether the selected Pokemon acts as the father or mother.")
-			),
-			textOutput("Tally"),
-			uiOutput("cardContainer")
-		)
-	), # nav_panel 1
-	
-	nav_panel(
-		title = "Graph",
-		page_sidebar(
-			title = "Pokemon Breeding Assistant",
-			sidebar = sidebar(
-				helpText("You can interact with this graph! Scroll to zoom.
-								 Hovering over a Pokemon highlights its compatible mates.
-								 Clicking locks this selection.
-								 You can click and drag nodes to help rearrange as needed.",
-								 p(),
-								 "Blue lines represent breeding compatibility,
-								 yellow lines represent evolutionary chains."),
-			),
-			visNetworkOutput("fullGraph")
-		)
-		
-	), # nav_panel 2
+				textOutput("Tally"),
+				uiOutput("cardContainer")
+			)
+		), # nav_panel 1
+		# Content page 2: graph mode
+		nav_panel(
+			title = "Graph",
+			page_sidebar(
+				# title = "Pokemon Breeding Assistant",
+				sidebar = sidebar(
+					helpText("You can interact with this graph! Scroll to zoom.
+									 Hovering over a Pokemon highlights its compatible mates.
+									 Clicking locks this selection.
+									 You can click and drag nodes to help rearrange as needed.",
+									 p(),
+									 "Blue lines represent breeding compatibility,
+									 yellow lines represent evolutionary chains."),
+				),
+				visNetworkOutput("fullGraph")
+			)
+			
+		), # nav_panel 2
+	)
 )
-
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
+	# Set which data to use based on generation radio buttons
+	obsRadio <- observe({setActiveVersion(input$genRadio)})
+	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
 		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
