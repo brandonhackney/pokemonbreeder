@@ -3,11 +3,13 @@ library(tidyverse)
 library(dplyr)
 library(httr2)
 library(jsonlite)
+library(this.path)
 
 ## Set environment variables
 # Define something persistent to contain backend data, fill it with said data,
 # and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
+.pokeData$path <- this.path::this.dir() # location of this script
 initData <- function(){
 	.pokeData$eggs <- getSpeciesTable()
 	.pokeData$graph <- buildGraph()
@@ -33,6 +35,9 @@ setActiveVersion <- function(vg){
 }
 getActiveVersion <- function(){
 	.pokeData$vg
+}
+getLocalPath <- function(){
+	.pokeData$path
 }
 
 # This happens at an earlier step, so it gets its own function
@@ -285,7 +290,7 @@ name2num <- function(nameList){
 # Functions that decide whether to read from disk or pull from the internet
 loadGens <- function(){
 	# Get the list of game generations, e.g. Red/Blue is "generation-i"
-	fname <- "generations.rds"
+	fname <- file.path(getLocalPath(),"generations.rds")
 	if (file.exists(fname)){
 		gens <- readRDS(fname)
 	} else {
@@ -306,7 +311,10 @@ loadMovesets <- function(generation, subgroup){
 		subgroup <- vg$name[1]
 	}
 	
-	fname <- paste0("movesets_", subgroup, ".rds")
+	fname <- file.path(
+		getLocalPath(),
+		paste0("movesets_", subgroup, ".rds")
+	)
 	if (file.exists(fname)){
 		moves <- readRDS(fname)
 	} else {
@@ -322,7 +330,7 @@ loadMovesets <- function(generation, subgroup){
 hitAPI <- function(pURL){
 	# Given a URL that points to a JSON file, grab the data
 	# Establish a local cache to save bandwidth
-	cacheDir <- ".cache"
+	cacheDir <- file.path(getLocalDir(), ".cache")
 	if (!dir.exists(cacheDir)){
 		dir.create(cacheDir)
 	}
@@ -356,7 +364,9 @@ getGensFromAPI <- function(){
 getVGNested <- function(){
 	# Get a full list of possible version groups, nested under their generation
 	# e.g. Gen1 has 'red-blue' and 'yellow', Gen2 has 'gold-silver' and 'crystal'
-	fname <- "vglist.rds"
+	fname <- file.path(
+		getLocalPath(),
+		"vglist.rds")
 	if (file.exists(fname)){
 		output <- readRDS(fname)
 	} else{
@@ -428,7 +438,10 @@ getMovesFromAPI <- function(generation, subgroup){
 
 getPokedex <- function(generation){
 	# Load or download a list of available Pokemon in the given generation
-	fname <- sprintf('pokedex_%s.rds', generation)
+	fname <- file.path(
+		getLocalPath(),
+		sprintf('pokedex_%s.rds', generation)
+	)
 	if (file.exists(fname)){
 		# Load it if we already have it
 		dex <- readRDS(fname)
@@ -460,7 +473,10 @@ getPokedexFromAPI <- function(generation){
 getSpeciesTable <- function(){
 	generation <- getActiveGen()
 	# Build or load the "species table", a dataframe with more info than the Dex
-	fname <- sprintf('evotable_%s.rds', generation)
+	fname <- file.path(
+		getLocalPath(),
+		sprintf('evotable_%s.rds', generation)
+	)
 	if (file.exists(fname)){
 		# Load it if we already have it
 		dex <- readRDS(fname)

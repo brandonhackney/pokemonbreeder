@@ -14,7 +14,7 @@ Everything is then cached locally to improve performance.
     
 ## How to run
 
-Required libraries: `shiny`, `bslib`, `tidyverse`, `igraph`, `visNetwork`, `httr2`, `jsonlite`
+Required libraries: `shiny`, `bslib`, `tidyverse`, `igraph`, `visNetwork`, `httr2`, `jsonlite`, `this.path`
 
 Clone this repo, open `app.R` in [RStudio](https://posit.co/download/rstudio-desktop/),
 and click the "Run App" button.
