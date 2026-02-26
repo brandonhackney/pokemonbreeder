@@ -1,16 +1,17 @@
 # Pokemon Breeding Assistant
 
 I built an app using [Shiny for R](https://shiny.posit.co/)
-that allows you to pick one of the 251 Pokemon in Gold & Silver versions,
-then returns a visual report of which other Pokemon it can "breed" with.
+that helps you determine which Pokemon can "breed" with each other.
 The game has certain rules about breeding that make this slightly more complicated
 than just filtering a table.
 
 You can visualize this breeding compatibility as either a list of images,
 or as an interactive graph network.
 
-Data is initially pulled via [PokeAPI](https://pokeapi.co/); sprites from [Serebii.net](https://serebii.net/).
+Data is initially pulled via [PokeAPI](https://pokeapi.co/); some sprites from [Serebii.net](https://serebii.net/).
 Everything is then cached locally to improve performance.
+
+The app supports all mainline games up to Scarlet & Violet.
     
 ## How to run
 
@@ -30,10 +31,7 @@ then identifying the shortest path(s) of chain-breed from one to the other.
 Critically, this will also allow you to track MOVE inheritance,
 e.g. whether or not your L100 Gyarados can pass Hyper Beam down to a baby Ekans.
 
-By pulling data from an API, I've also set up to display data from
-newer generations of games.
-
-I just need to take the time to build and incorporate the UI elements :)
+But it will take some time to build and incorporate the UI elements.
 
 
 ## Manifest
@@ -44,7 +42,7 @@ I just need to take the time to build and incorporate the UI elements :)
 * `readme.md`: this document.
 * `vglist.rds`: a manually-defined list of games that data is available for
 
-Using this app will also generate local `.rds` files to store data that
+Using this app will generate additional `.rds` files to store data that
 otherwise takes a bit of time to download and process.
 Deleting these files won't break the app, but it will slow down launch time
 (and increase the number of API requests you make).
