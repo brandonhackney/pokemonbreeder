@@ -155,8 +155,8 @@ getNumbers <- function(Pokemon){
 		# Skip anything in the same ratio if it has a 0/8 or 8/8 prob of female
 		candidates <- eggs %>% 
 			filter(GenderRatio != genderRatio) %>% 
-			filter(Name %in% candidates) %>% 
-			pull(Name) %>% 
+			filter(Number %in% candidates) %>% 
+			pull(Number) %>% 
 			unique()
 	}
 	return(candidates)
