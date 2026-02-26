@@ -190,13 +190,13 @@ renderGraph <- function(eggGraph){
 	data$edges$arrows.to.scaleFactor <-
 		ifelse(data$edges$type == "evolution", 1, 0.5)
 	
-	repList <- list(springLength = 200, springConstant = .005, gravitationalConstant = -120)
+	repList <- list(nodeDistance = 150, springLength = 200, springConstant = .005, centralGravity = .02)
 	stabil <- list(enabled = TRUE, iterations = 300)
 	
 	visNetwork(nodes = nodes, edges = data$edges) %>% 
-		visIgraphLayout(layout = "layout_nicely", physics = TRUE) %>%
+		visIgraphLayout(layout = "layout_in_circle", physics = TRUE) %>%
 		visNodes(size = 40, font = list(size = 20)) %>% 
-		visEdges(arrows = "to") %>%
+		visEdges(arrows = "to") %>% # smooth = TRUE would be nice but my laptop can't handle it
 		visPhysics(solver = "repulsion", repulsion = repList) %>%
 		visOptions(highlightNearest = list(enabled = T, hover =T, algorithm = "hierarchical"))
 }
