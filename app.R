@@ -69,9 +69,6 @@ uiF <- page_sidebar(
 )
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
-	# Define a shared variable that can be updated by multiple methods
-	reactiveVar <- reactiveValues(mateList = 0)
-	
 	# Perform the following actions ONLY AFTER the game version changes
 	observeEvent({input$genRadio},{
 		# Update the backend data
@@ -91,6 +88,7 @@ serverF <- function(input, output) {
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
+		req(input$genRadio, input$Dropdown)
 		tmp <- input$genRadio # dummy call so it checks this var
 		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
 	})
@@ -108,6 +106,7 @@ serverF <- function(input, output) {
 	
 	# Count the number of results and display
 	getName <- reactive({
+		req(input$Dropdown)
 		c(input$Dropdown, "has", getCount(), "potential mates")
 	})
 	
@@ -117,11 +116,13 @@ serverF <- function(input, output) {
 	
 	# Get the number of the selected Pokemon
 	selectionNumber <- reactive({
+		req(input$Dropdown)
 		 name2num(input$Dropdown)
 	})
 	
 	# Create a card of the selected Pokemon
 	output$selectionCard <- renderUI({
+		req(input$genRadio)
 		tmp <- input$genRadio # dummy call so it checks this var
 		selCard <- getCard(selectionNumber())
 	})
