@@ -21,15 +21,11 @@ uiF <- page_sidebar(
 			choices = vgList[-1]
 		)
 	),
+	title = "Pokemon Breeding Assistant",
 	# Nav pane on bottom to switch between modes e.g. list, graph
-	page_navbar(
+	navset_card_pill(
 		title = "Select mode:",
-		id = "mainNavbar",
-		header = "Pokemon Breeding Assistant",
-		navbar_options = navbar_options(
-			position = "fixed-bottom",
-			collapsible = FALSE
-		),
+		id = "modeSelector",
 		# Content page 1: List mode
 		nav_panel(
 			title = "List",
