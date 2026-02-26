@@ -3,11 +3,13 @@ library(tidyverse)
 library(dplyr)
 library(httr2)
 library(jsonlite)
+library(this.path)
 
 ## Set environment variables
 # Define something persistent to contain backend data, fill it with said data,
 # and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
+.pokeData$path <- this.path::this.dir() # location of this script
 initData <- function(){
 	.pokeData$eggs <- getSpeciesTable()
 	.pokeData$graph <- buildGraph()
@@ -29,9 +31,13 @@ getActiveGen <- function(){
 
 setActiveVersion <- function(vg){
 	.pokeData$vg <- vg
+	findGenOfVersion(vg) %>% setActiveGen()
 }
 getActiveVersion <- function(){
 	.pokeData$vg
+}
+getLocalPath <- function(){
+	.pokeData$path
 }
 
 # This happens at an earlier step, so it gets its own function
@@ -80,12 +86,25 @@ getSprite <- function(number){
 	}
 	generation <- getActiveGen()
 	vg <- getActiveVersion()
-	if (generation == "generation-ii" && vg == "gold-silver"){
-		# It has options other than the version group, so manually pick one
-		vg = "gold"
+	if (generation == "generation-ii"){ 
+		if (vg == "gold-silver"){
+			# It has different sprites for gold and silver, so manually pick one
+			vg = "gold"
+		} 
+		# Use this website for Gen2 because the sprites are formatted better
+		# But their paths are harder to access programmatically in later gens
+		webPath <- sprintf("https://serebii.net/pokearth/sprites/%s/%03i.png", vg, number)
+	} else {
+			if (generation == "generation-v" && vg == "black-2-white-2") {
+				vg = "black-white"
+			} else if (generation == "generation-vi" && vg == "omega-ruby-alpha-sapphire"){
+				vg = "omegaruby-alphasapphire"
+			} else if (vg == "sun-moon" || vg == "sword-shield"){
+				vg = "icons"
+			}
+		# Use PokeAPI by default
+		webPath <- sprintf("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/%s/%s/%i.png", generation, vg, number)
 	}
-	webPath <- sprintf("https://serebii.net/pokearth/sprites/%s/%03i.png", vg, number)
-	
 	return(webPath)
 }
 
@@ -271,7 +290,7 @@ name2num <- function(nameList){
 # Functions that decide whether to read from disk or pull from the internet
 loadGens <- function(){
 	# Get the list of game generations, e.g. Red/Blue is "generation-i"
-	fname <- "generations.rds"
+	fname <- file.path(getLocalPath(),"generations.rds")
 	if (file.exists(fname)){
 		gens <- readRDS(fname)
 	} else {
@@ -292,7 +311,10 @@ loadMovesets <- function(generation, subgroup){
 		subgroup <- vg$name[1]
 	}
 	
-	fname <- paste0("movesets_", subgroup, ".rds")
+	fname <- file.path(
+		getLocalPath(),
+		paste0("movesets_", subgroup, ".rds")
+	)
 	if (file.exists(fname)){
 		moves <- readRDS(fname)
 	} else {
@@ -308,7 +330,7 @@ loadMovesets <- function(generation, subgroup){
 hitAPI <- function(pURL){
 	# Given a URL that points to a JSON file, grab the data
 	# Establish a local cache to save bandwidth
-	cacheDir <- ".cache"
+	cacheDir <- file.path(getLocalDir(), ".cache")
 	if (!dir.exists(cacheDir)){
 		dir.create(cacheDir)
 	}
@@ -339,10 +361,32 @@ getGensFromAPI <- function(){
 	# output$name[1] should be 'generation-i'
 }
 
+getVGNested <- function(){
+	# Get a full list of possible version groups, nested under their generation
+	# e.g. Gen1 has 'red-blue' and 'yellow', Gen2 has 'gold-silver' and 'crystal'
+	fname <- file.path(
+		getLocalPath(),
+		"vglist.rds")
+	if (file.exists(fname)){
+		output <- readRDS(fname)
+	} else{
+		genList <- getGens()
+		output <- vector(mode = "list", length=nrow(genList))
+		names(output) <- genList$name
+		for (gen in genList$name){
+			vgList <- gen %>% getVGfromAPI()
+			output[[gen]] <- vgList$name
+		}
+		saveRDS(output, fname)
+	}
+	return(output)
+}
+
 getVGfromAPI <- function(generation){
 	# Get the list of "version groups" available in this generation
 	# For example, Gen2 has `gold-silver` and `crystal`
-	dat <- getGenURL %>% 
+	dat <- generation %>% 
+		getGenURL() %>% 
 		hitAPI()
 	dat$version_groups
 	# Result should be a table with name and url components
@@ -394,7 +438,10 @@ getMovesFromAPI <- function(generation, subgroup){
 
 getPokedex <- function(generation){
 	# Load or download a list of available Pokemon in the given generation
-	fname <- sprintf('pokedex_%s.rds', generation)
+	fname <- file.path(
+		getLocalPath(),
+		sprintf('pokedex_%s.rds', generation)
+	)
 	if (file.exists(fname)){
 		# Load it if we already have it
 		dex <- readRDS(fname)
@@ -426,7 +473,10 @@ getPokedexFromAPI <- function(generation){
 getSpeciesTable <- function(){
 	generation <- getActiveGen()
 	# Build or load the "species table", a dataframe with more info than the Dex
-	fname <- sprintf('evotable_%s.rds', generation)
+	fname <- file.path(
+		getLocalPath(),
+		sprintf('evotable_%s.rds', generation)
+	)
 	if (file.exists(fname)){
 		# Load it if we already have it
 		dex <- readRDS(fname)
@@ -562,6 +612,18 @@ searchEvoStack <- function(chain, target){
 	# If you reach this point, then none of the nested nodes had the target
 	# Return NA and let the previous layer move on to its next nested node
 	return(NA)
+}
+
+findGenOfVersion <- function(vg){
+	# Given an input version e.g. "red-blue", identify matching generation
+	# Step through the nested lists and see if the input value is in that row
+	# If so, return the name of that row
+	vgList <- getVGNested()
+	for (i in 1:length(vgList)){
+		if (vg %in% vgList[[i]]){
+			return(names(vgList[i]))
+		}
+	}
 }
 
 getGenList <- function(){

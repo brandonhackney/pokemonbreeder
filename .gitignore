@@ -18,6 +18,7 @@ __pycache__/
 *.xlsx
 *.html
 *.rds
+!vglist.rds
 /data/*
 
 # Development-related

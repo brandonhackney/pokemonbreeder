@@ -197,5 +197,5 @@ renderGraph <- function(eggGraph){
 		visNodes(size = 40, font = list(size = 20)) %>% 
 		visEdges(arrows = "to") %>%
 		visPhysics(solver = "repulsion", repulsion = repList) %>%
-		visOptions(highlightNearest = list(enabled = T, hover =T))
+		visOptions(highlightNearest = list(enabled = T, hover =T, algorithm = "hierarchical"))
 }
