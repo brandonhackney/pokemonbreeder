@@ -42,8 +42,13 @@ I just need to take the time to build and incorporate the UI elements :)
 * `helper.R`: R code for accessing and transforming the data
 * `graphs.R`: R code specific to graph network methods
 * `readme.md`: this document.
+* `vglist.rds`: a manually-defined list of games that data is available for
 
 Using this app will also generate local `.rds` files to store data that
 otherwise takes a bit of time to download and process.
 Deleting these files won't break the app, but it will slow down launch time
 (and increase the number of API requests you make).
+`vglist.rds` can technically be regenerated from the API, but it will include
+lots of extra games (like Let's Go Pikachu) that don't have the data we analyze here.
+
+All that is to say: I'd advise leaving the `.rds` files alone.
