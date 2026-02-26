@@ -69,23 +69,29 @@ uiF <- page_sidebar(
 )
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
-	# Set which data to use based on generation radio buttons
-	getDynamicPokedex <- reactive({
-		setActiveVersion(input$genRadio)
-		dex <- getEggs()
-		return(dex$Name)
-		})
+	# Define a shared variable that can be updated by multiple methods
+	reactiveVar <- reactiveValues(mateList = 0)
 	
+	# Perform the following actions ONLY AFTER the game version changes
+	observeEvent({input$genRadio},{
+		# Update the backend data
+		setActiveVersion(input$genRadio)
+	})
+	
+	# Create a dropdown list of pokemon in this generation
 	output$dynamicDropdown <- renderUI({
-			selectInput(
+		tmp <- input$genRadio # dummy call so this updates
+		eggs <- getEggs()
+		selectInput(
 			"Dropdown",
 			label = "Selected Pokemon:",
-			choices = getDynamicPokedex()
+			choices = eggs$Name
 		)
 	})
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
+		tmp <- input$genRadio # dummy call so it checks this var
 		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
 	})
 	
@@ -99,10 +105,12 @@ serverF <- function(input, output) {
 			length(y)
 		}
 	})
+	
 	# Count the number of results and display
 	getName <- reactive({
 		c(input$Dropdown, "has", getCount(), "potential mates")
 	})
+	
 	output$Tally <-  renderText({
 		getName()
 	})
@@ -112,12 +120,15 @@ serverF <- function(input, output) {
 		 name2num(input$Dropdown)
 	})
 	
+	# Create a card of the selected Pokemon
 	output$selectionCard <- renderUI({
+		tmp <- input$genRadio # dummy call so it checks this var
 		selCard <- getCard(selectionNumber())
-	}) %>% bindCache(selectionNumber(), getActiveGen())
+	})
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
 	output$cardContainer <- renderUI({
+		tmp <- input$genRadio # dummy call so it checks this var
 		card_list <- lapply(displayList(), getCard)
 		card_list$cellArgs <- list(
 			style = "
@@ -128,17 +139,15 @@ serverF <- function(input, output) {
 		)
 		do.call(flowLayout, card_list)
 	})
-	
-	# update graph
-	getCurrentGraph <- reactive({
-		observe(input$genRadio)
-		getGraph()
-	})
-	
+
+
 	# Render the visNetwork graph
+	# Leave this as reactive so it only updates when viewed
 	output$fullGraph <- renderVisNetwork({
-		getCurrentGraph() %>% renderGraph()
-	})
+		getGraph() %>% renderGraph()
+	}) %>% 
+		bindCache(input$genRadio) %>%
+		bindEvent(input$genRadio)
 }
 
 # Activate the server with the defined UI
