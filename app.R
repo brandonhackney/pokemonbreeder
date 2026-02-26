@@ -31,10 +31,9 @@ uiF <- page_sidebar(
 		nav_panel(
 			title = "List",
 			page_sidebar(
-				# title = "Pokemon Breeding Assistant",
 				sidebar = sidebar(
 					open = "always",
-					uiOutput("dynamicDropdown"),
+					selectizeInput("Dropdown", choices = "Bulbasaur", label = "Selected Pokemon:"),
 					uiOutput("selectionCard"),
 					helpText("List all possible mates for the selected Pokemon.
 									 This displays general compatibility, without considering
@@ -72,14 +71,13 @@ serverF <- function(input, output) {
 		setActiveVersion(input$genRadio)
 	})
 	
-	# Create a dropdown list of pokemon in this generation
-	output$dynamicDropdown <- renderUI({
-		tmp <- input$genRadio # dummy call so this updates
-		eggs <- getEggs()
-		selectInput(
-			"Dropdown",
-			label = "Selected Pokemon:",
-			choices = eggs$Name
+	observeEvent({input$genRadio},{
+		updateSelectizeInput(
+			session = getDefaultReactiveDomain(),
+			inputId = 'Dropdown', 
+			choices = getEggs()$Name, 
+			server = TRUE,
+			options = list(maxItems = 1)
 		)
 	})
 	
