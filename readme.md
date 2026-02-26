@@ -1,16 +1,17 @@
 # Pokemon Breeding Assistant
 
 I built an app using [Shiny for R](https://shiny.posit.co/)
-that allows you to pick one of the 251 Pokemon in Gold & Silver versions,
-then returns a visual report of which other Pokemon it can "breed" with.
+that helps you determine which Pokemon can "breed" with each other.
 The game has certain rules about breeding that make this slightly more complicated
 than just filtering a table.
 
 You can visualize this breeding compatibility as either a list of images,
 or as an interactive graph network.
 
-Data is initially pulled via [PokeAPI](https://pokeapi.co/); sprites from [Serebii.net](https://serebii.net/).
+Data is initially pulled via [PokeAPI](https://pokeapi.co/); some sprites from [Serebii.net](https://serebii.net/).
 Everything is then cached locally to improve performance.
+
+The app supports all mainline games up to Scarlet & Violet.
     
 ## How to run
 
