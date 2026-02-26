@@ -19,7 +19,8 @@ uiF <- page_sidebar(
 			inputId = "genRadio",
 			label = "Select a game generation",
 			choices = vgList[-1]
-		)
+		),
+		helpText("You can collapse this sidebar after making a selection")
 	),
 	title = "Pokemon Breeding Assistant",
 	# Nav pane on bottom to switch between modes e.g. list, graph
