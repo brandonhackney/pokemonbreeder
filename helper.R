@@ -84,8 +84,14 @@ getSprite <- function(number){
 	if (generation == "generation-ii" && vg == "gold-silver"){
 		# It has options other than the version group, so manually pick one
 		vg = "gold"
+	} else if (generation == "generation-v" && vg == "black-2-white-2") {
+		vg = "black-white"
+	} else if (generation == "generation-vi" && vg == "omega-ruby-alpha-sapphire"){
+		vg = "omegaruby-alphasapphire"
+	} else if (vg == "sun-moon" || vg == "sword-shield"){
+		vg = "icons"
 	}
-	webPath <- sprintf("https://serebii.net/pokearth/sprites/%s/%03i.png", vg, number)
+	webPath <- sprintf("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/%s/%s/%i.png", generation, vg, number)
 	
 	return(webPath)
 }

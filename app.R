@@ -8,7 +8,7 @@ vgList <- getVGNested()
 
 setActiveVersion("gold-silver")
 
-eggs <- getEggs()
+# eggs <- getEggs()
 # genList <- getGens() %>% pull(name) 
 
 # A function that organizes the UI elements of the shiny app	
@@ -37,11 +37,7 @@ uiF <- page_sidebar(
 				# title = "Pokemon Breeding Assistant",
 				sidebar = sidebar(
 					open = "always",
-					selectInput(
-						"Dropdown",
-						label = "Selected Pokemon:",
-						choices = eggs$Name
-					),
+					uiOutput("dynamicDropdown"),
 					uiOutput("selectionCard"),
 					helpText("List all possible mates for the selected Pokemon.
 									 This displays general compatibility, without considering
@@ -74,7 +70,19 @@ uiF <- page_sidebar(
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
 	# Set which data to use based on generation radio buttons
-	obsRadio <- observe({setActiveVersion(input$genRadio)})
+	getDynamicPokedex <- reactive({
+		setActiveVersion(input$genRadio)
+		dex <- getEggs()
+		return(dex$Name)
+		})
+	
+	output$dynamicDropdown <- renderUI({
+			selectInput(
+			"Dropdown",
+			label = "Selected Pokemon:",
+			choices = getDynamicPokedex()
+		)
+	})
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
@@ -121,9 +129,15 @@ serverF <- function(input, output) {
 		do.call(flowLayout, card_list)
 	})
 	
+	# update graph
+	getCurrentGraph <- reactive({
+		observe(input$genRadio)
+		getGraph()
+	})
+	
 	# Render the visNetwork graph
 	output$fullGraph <- renderVisNetwork({
-		getGraph() %>% renderGraph()
+		getCurrentGraph() %>% renderGraph()
 	})
 }
 
