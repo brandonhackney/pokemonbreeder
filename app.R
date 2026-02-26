@@ -140,10 +140,10 @@ serverF <- function(input, output) {
 	# Render the visNetwork graph
 	# Leave this as reactive so it only updates when viewed
 	output$fullGraph <- renderVisNetwork({
+		# tmp <- input$genRadio
 		getGraph() %>% renderGraph()
 	}) %>% 
-		bindCache(input$genRadio) %>%
-		bindEvent(input$genRadio)
+		bindCache(input$genRadio)
 }
 
 # Activate the server with the defined UI
