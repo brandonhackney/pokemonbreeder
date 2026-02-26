@@ -13,7 +13,10 @@ eggs <- getEggs()
 uiF <- page_navbar(
 	title = "Select mode:",
 	id = "mainNavbar",
-	position = "fixed-bottom",
+	navbar_options = navbar_options(
+		position = "fixed-bottom",
+		collapsible = FALSE
+	),
 	nav_panel(
 		title = "List",
 		page_sidebar(
