@@ -117,9 +117,10 @@ editGraph <- function(bipGraph){
 }
 
 # Return results from the graph
-getMates <- function(Pokemon){
+getMates <- function(Pokemon, modeSelection){
+	if (missing(modeSelection)) {modeSelection = "all"} # default
 	eggGraph <- getGraph()
-	l <- neighbors(eggGraph, Pokemon, mode = "all")
+	l <- neighbors(eggGraph, Pokemon, mode = modeSelection)
 	result <- V(eggGraph)$name[l] %>% unique()
 	if (is_empty(result)){
 		return(0)
