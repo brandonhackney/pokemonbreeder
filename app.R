@@ -85,7 +85,8 @@ serverF <- function(input, output) {
 	displayList <- reactive({
 		req(input$genRadio, input$Dropdown)
 		tmp <- input$genRadio # dummy call so it checks this var
-		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
+		# getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
+		getMates(input$Dropdown)
 	})
 	
 	# Tally number of mates, but if result contains 0, that means none, not 1
