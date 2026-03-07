@@ -284,6 +284,12 @@ name2num <- function(nameList){
 		filter(Name %in% nameList) %>% 
 		pull(Number)
 }
+num2name <- function(numberList){
+	# Convert a list of Pokemon numbers to Pokemon names
+	getEggs() %>% 
+		filter(Number %in% numberList) %>% 
+		pull(Name)
+}
 
 
 ## Data access functions
@@ -322,6 +328,23 @@ loadMovesets <- function(generation, subgroup){
 		saveRDS(moves, fname)
 	}
 	return(moves)
+}
+
+listMoves <- function(Pokemon){
+	# Produce a list of all moves the selected Pokemon can learn in this version
+	# Returned values are the "slug" move names, which can be reformatted later
+	if (is.numeric(Pokemon)){
+		Pokemon <- num2name(Pokemon)
+	}
+	# Convert from nicely-formatted name to slug name
+	fname <- getEggs() %>%
+		filter(Name == Pokemon) %>%
+		pull(fname)
+	# Use the slug name to index the move column of the moveset table
+	output <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+		filter(pokemon == fname) %>% 
+		pull(move)
+	return(output)
 }
 
 ## Data acquisition functions
