@@ -35,9 +35,17 @@ uiF <- page_sidebar(
 					open = "always",
 					selectizeInput("Dropdown", choices = "Bulbasaur", label = "Selected Pokemon:"),
 					uiOutput("selectionCard"),
-					helpText("List all possible mates for the selected Pokemon.
-									 This displays general compatibility, without considering
-									 whether the selected Pokemon acts as the father or mother.")
+					radioButtons(inputId = "genderSwitch",
+											 label = "Selected gender:",
+											 choices = c("♂" = "out", "♀" = "in", "Either" = "all"),
+											 selected = "all",
+											 inline = TRUE
+											 ),
+					helpText("List all possible mates for the selected Pokemon,
+									 given the selected gender. For example, Bulbasaur♀
+									 can breed with Nidoran♂, but not Nidoran♀.
+									 \n
+									 Ditto is a special case and is always treated as a mother here.")
 				),
 				textOutput("Tally"),
 				uiOutput("cardContainer")
@@ -85,7 +93,8 @@ serverF <- function(input, output) {
 	displayList <- reactive({
 		req(input$genRadio, input$Dropdown)
 		tmp <- input$genRadio # dummy call so it checks this var
-		getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
+		# getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
+		getMates(input$Dropdown, input$genderSwitch)
 	})
 	
 	# Tally number of mates, but if result contains 0, that means none, not 1

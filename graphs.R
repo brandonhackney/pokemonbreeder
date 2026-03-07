@@ -45,6 +45,29 @@ buildGraph <- function(){
 	return(proj)
 }
 
+dittoVis <- function(graph){
+	# For visualization purposes, strip out 90% of edges pointing to Ditto,
+	# but leave the Neuter group containing Staryu and Voltorb.
+	# Otherwise the graph becomes illegible.
+	eggs <- getEggs()
+	# First, just strip out ANYTHING pointing to or from Ditto.
+	toDittoEdges <- E(graph)[eggs$Name %--% "Ditto"]
+	fromDittoEdges <- E(graph)["Ditto" %--% eggs$Name]
+	graph <- delete_edges(graph, c(toDittoEdges, fromDittoEdges))
+	
+	# Next, determine who belongs to the Neuter group
+	neuterIDs <- eggs %>%
+		unnest(EggGroups) %>% 
+		filter(GenderRatio == -1 & !(EggGroups %in% c("no-eggs", "ditto"))) %>% 
+		pull(Name) %>% 
+		unique()
+	# Finally, re-insert edges from Neuter to Ditto
+	ndEdges <- as.vector(rbind(neuterIDs, "Ditto"))
+	graph <- add_edges(graph, c(ndEdges), type = "breeding")
+	return(graph)
+	
+}
+
 editGraph <- function(bipGraph){
 	eggs <- getEggs()
 	# Reinsert missing self-self edges
@@ -59,11 +82,14 @@ editGraph <- function(bipGraph){
 		unique()
 	neuterIDs <- eggs %>%
 		unnest(EggGroups) %>% 
-		filter(GenderRatio == -1 & !(EggGroups == "no-eggs")) %>% 
+		filter(GenderRatio == -1 & !(EggGroups %in% c("no-eggs", "ditto"))) %>% 
 		pull(Name) %>% 
 		unique()
 	noEggEdges <- E(bipGraph)[noEggIDs %--% eggs$Name]
 	neuterEdges <- E(bipGraph)[neuterIDs %--% eggs$Name]
+	
+	# Also strip out Ditto's self-edge
+	dittoEdge <- E(bipGraph)["Ditto" %--% "Ditto"]
 	
 	# All-female species cannot "father" anything
 	# All-male species cannot "mother" anything
@@ -74,30 +100,28 @@ editGraph <- function(bipGraph){
 	mmEdges <- E(bipGraph)[.to(maleIDs)]
 
 	# Now delete all the bad edges
-	badEdges <- c(noEggEdges, neuterEdges,mmEdges,ffEdges)
+	badEdges <- c(noEggEdges, neuterEdges,mmEdges,ffEdges, dittoEdge)
 	newGraph <- delete_edges(bipGraph, badEdges)
 	
-	# Finally, strip out any edges pointing to Ditto
-	# This makes the graph illegible
-	# toDittoIDs <- eggs %>%
-	# 	filter(!(Name %in% c(noEggIDs))) %>% 
-	# 	filter(Name != "Ditto") %>% 
-	# 	pull(Name)
-	# dittoEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
-	toDittoEdges <- E(newGraph)[eggs$Name %--% "Ditto"]
-	fromDittoEdges <- E(newGraph)["Ditto" %--% eggs$Name]
-	newGraph <- delete_edges(newGraph, c(toDittoEdges, fromDittoEdges))
+	# For non-visualization purposes, insert edges to Ditto
+	toDittoIDs <- eggs %>% 
+		filter(!(Name %in% c(noEggIDs, "Ditto"))) %>% 
+		pull(Name)
+	toDittoEdges <- as.vector(rbind(toDittoIDs, "Ditto"))
+	newGraph <- add_edges(newGraph, toDittoEdges)
 	
-	E(newGraph)$type <- "breeding" # to be differentiated from evolution
+	# Label all these edges as breeding, to be differentiated from evolution
+	E(newGraph)$type <- "breeding"
 	
 	return(newGraph)
 }
 
 # Return results from the graph
-getMates <- function(Pokemon){
+getMates <- function(Pokemon, modeSelection){
+	if (missing(modeSelection)) {modeSelection = "all"} # default
 	eggGraph <- getGraph()
-	l <- neighbors(eggGraph, Pokemon)
-	result <- V(eggGraph)$name[l]
+	l <- neighbors(eggGraph, Pokemon, mode = modeSelection)
+	result <- V(eggGraph)$name[l] %>% unique()
 	if (is_empty(result)){
 		return(0)
 	} else{
@@ -177,6 +201,7 @@ getEvoEdges <- function(){
 
 # Visualize the graph
 renderGraph <- function(eggGraph){
+	eggGraph <- dittoVis(eggGraph)
 	eggGraph <- insertEvoEdges(eggGraph)
 	data <- toVisNetworkData(eggGraph)
 	nodes <- insertSprites(data$nodes)
