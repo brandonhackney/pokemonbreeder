@@ -184,9 +184,16 @@ getNumbers <- function(Pokemon){
 canInherit <- function(Pok, Move){
 	# Can the selected Pokemon inherit the selected move? True or False
 	# find the name as it's formatted in the move table
-	fname <- getEggs() %>% 
-		filter(Name == Pok) %>% 
-		pull(fname)
+	if (is.numeric(Pok)){
+		fname <- getEggs() %>% 
+			filter(Number == Pok) %>% 
+			pull(fname)
+	} else {
+		fname <- getEggs() %>% 
+			filter(Name == Pok) %>% 
+			pull(fname)
+	}
+	
 	# load the move table and check your values
 	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
 		filter(pokemon == fname) %>% 
@@ -194,7 +201,7 @@ canInherit <- function(Pok, Move){
 		nrow() > 0
 }
 
-findChain <- function(P1, P2){
+findChain <- function(P1, P2, MoveName){
 	# Given the NUMBERS of two Pokemon P1 and P2,
 	# return a list of numbers giving the shortest breeding chain from P1 to P2
 	# If there are multiple options of the same length, returns a list of lists
@@ -235,6 +242,11 @@ findChain <- function(P1, P2){
 		
 		for (neighbor in mateList) {
 			new_dist <- distance[current] + 1
+			
+			# First, see if we should even consider this one at all:
+			if (!missing(MoveName) && !(canInherit(current, MoveName))){
+				next
+			}
 			
 			# Where "current" is a parent and "neighbor" is a child:
 			# If this is the first time considering this child,
