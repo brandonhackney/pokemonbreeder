@@ -416,6 +416,16 @@ getVGfromAPI <- function(generation){
 	# The url will be used later by getDataFromAPI
 }
 
+getMoveNameFromAPI <- function (moveSlug){
+	# Given the slug name for a move, return the nicely formatted name
+	# e.g. hyper-beam becomes Hyper Beam
+	dat <- paste0("https://pokeapi.co/api/v2/move/", moveSlug) %>% 
+		hitAPI()
+	dat$names %>% 
+		filter(language$name == "en") %>% 
+		pull(name)
+}
+
 getMovesFromAPI <- function(generation, subgroup){
 	# Pull a list of legal moves per Pokemon in a given game generation
 	# Input 1 should be a string as pulled from getGenList()
