@@ -181,6 +181,19 @@ getNumbers <- function(Pokemon){
 	return(candidates)
 }
 
+canInherit <- function(Pok, Move){
+	# Can the selected Pokemon inherit the selected move? True or False
+	# find the name as it's formatted in the move table
+	fname <- getEggs() %>% 
+		filter(Name == Pok) %>% 
+		pull(fname)
+	# load the move table and check your values
+	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+		filter(pokemon == fname) %>% 
+		filter(move == Move) %>%
+		nrow() > 0
+}
+
 findChain <- function(P1, P2){
 	# Given the NUMBERS of two Pokemon P1 and P2,
 	# return a list of numbers giving the shortest breeding chain from P1 to P2
