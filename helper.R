@@ -353,7 +353,7 @@ listMoves <- function(Pokemon){
 hitAPI <- function(pURL){
 	# Given a URL that points to a JSON file, grab the data
 	# Establish a local cache to save bandwidth
-	cacheDir <- file.path(getLocalDir(), ".cache")
+	cacheDir <- file.path(getLocalPath(), ".cache")
 	if (!dir.exists(cacheDir)){
 		dir.create(cacheDir)
 	}
