@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 source("helper.R")
 source("graphs.R")
+source("selectorUI.R")
 
 initGens()
 vgList <- getVGNested()
@@ -33,8 +34,7 @@ uiF <- page_sidebar(
 			page_sidebar(
 				sidebar = sidebar(
 					open = "always",
-					selectizeInput("Dropdown", choices = "Bulbasaur", label = "Selected Pokemon:"),
-					uiOutput("selectionCard"),
+					cardUI("listName"),
 					radioButtons(inputId = "genderSwitch",
 											 label = "Selected gender:",
 											 choices = c("♂" = "out", "♀" = "in", "Either" = "all"),
@@ -78,8 +78,8 @@ uiF <- page_sidebar(
 				# Part 1: Selection area
 				card("Selection area",
 						 layout_columns(
-						 	card("Source"),
-						 	card("Target")
+						 	cardUI("Source"),
+						 	cardUI("Target")
 						 	)
 						 ),
 				# Part 2: Output area
@@ -97,22 +97,20 @@ serverF <- function(input, output) {
 		setActiveVersion(input$genRadio)
 	})
 	
-	observeEvent({input$genRadio},{
-		updateSelectizeInput(
-			session = getDefaultReactiveDomain(),
-			inputId = 'Dropdown', 
-			choices = getEggs()$Name, 
-			server = TRUE,
-			options = list(maxItems = 1)
-		)
-	})
+	genToServer <- reactive(input$genRadio)
+	# These outputs are reactives, so get the value using e.g. listPok()
+	listPok <- cardServer("listName", genToServer)
+	graphPok <- cardServer("graphName", genToServer)
+	sourcePok <- cardServer("Source", genToServer)
+	targetPok <- cardServer("Target", genToServer)
+	
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
-		req(input$genRadio, input$Dropdown)
+		req(input$genRadio, listPok())
 		tmp <- input$genRadio # dummy call so it checks this var
 		# getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
-		getMates(input$Dropdown, input$genderSwitch)
+		getMates(listPok(), input$genderSwitch)
 	})
 	
 	# Tally number of mates, but if result contains 0, that means none, not 1
@@ -128,25 +126,12 @@ serverF <- function(input, output) {
 	
 	# Count the number of results and display
 	getName <- reactive({
-		req(input$Dropdown)
-		c(input$Dropdown, "has", getCount(), "potential mates")
+		req(listPok())
+		c(listPok(), "has", getCount(), "potential mates")
 	})
 	
 	output$Tally <-  renderText({
 		getName()
-	})
-	
-	# Get the number of the selected Pokemon
-	selectionNumber <- reactive({
-		req(input$Dropdown)
-		 name2num(input$Dropdown)
-	})
-	
-	# Create a card of the selected Pokemon
-	output$selectionCard <- renderUI({
-		req(input$genRadio)
-		tmp <- input$genRadio # dummy call so it checks this var
-		selCard <- getCard(selectionNumber())
 	})
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
