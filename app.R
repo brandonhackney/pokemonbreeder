@@ -166,7 +166,8 @@ serverF <- function(input, output) {
 	
 	# Get the list of moves choices for the source Pokemon
 	# Update dropdown options based on selected generation
-	observeEvent({input$genRadio},{
+	observe({
+		req(input$genRadio, sourcePok())
 		updateSelectizeInput(
 			session = getDefaultReactiveDomain(),
 			inputId = 'movePicker', 
@@ -174,7 +175,8 @@ serverF <- function(input, output) {
 			server = TRUE,
 			options = list(maxItems = 1)
 		)
-	})
+	}) %>% 
+		bindEvent(input$genRadio, sourcePok())
 	
 	# When user pushes the button, calculate possible chains from Source to Target
 	doMoveCheck <- eventReactive(
