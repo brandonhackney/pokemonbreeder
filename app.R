@@ -69,6 +69,22 @@ uiF <- page_sidebar(
 			)
 			
 		), # nav_panel 2
+		# Content page 3: move selector
+		nav_panel(
+			title = "Moves",
+			layout_columns(
+				# Part 1: Selection area
+				card("Selection area",
+						 layout_columns(
+						 	card("Source"),
+						 	card("Target")
+						 	)
+						 ),
+				# Part 2: Output area
+				card("Output area"),
+				col_widths = c(12,12) # max out their widths, so they appear as rows
+			)
+		)
 	)
 )
 # A function that runs code based on UI selections
