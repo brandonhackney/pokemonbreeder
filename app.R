@@ -78,8 +78,8 @@ uiF <- page_sidebar(
 				# Part 1: Selection area
 				card("Selection area",
 						 layout_columns(
-						 	cardUI("Source"),
-						 	cardUI("Target")
+						 	cardUI("Source", "Select a source Pokemon"),
+						 	cardUI("Target", "Select a target Pokemon")
 						 	)
 						 ),
 				# Part 2: Output area
