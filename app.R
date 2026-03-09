@@ -79,6 +79,7 @@ uiF <- page_sidebar(
 				card("Selection area",
 						 layout_columns(
 						 	cardUI("Source", "Select a source Pokemon"),
+						 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
 						 	cardUI("Target", "Select a target Pokemon")
 						 	)
 						 ),
@@ -156,6 +157,19 @@ serverF <- function(input, output) {
 		getGraph() %>% renderGraph()
 	}) %>% 
 		bindCache(input$genRadio)
+	
+	# Get the list of moves choices for the source Pokemon
+	# Update dropdown options based on selected generation
+	observeEvent({input$genRadio},{
+		updateSelectizeInput(
+			session = getDefaultReactiveDomain(),
+			inputId = 'movePicker', 
+			choices = listMoves(sourcePok()), 
+			server = TRUE,
+			options = list(maxItems = 1)
+		)
+	})
+	
 }
 
 # Activate the server with the defined UI
