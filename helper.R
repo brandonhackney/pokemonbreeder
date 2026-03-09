@@ -108,6 +108,41 @@ getSprite <- function(number){
 	return(webPath)
 }
 
+renderChain <- function(chain){
+	# Given a list of Pokemon numbers, render a "chain" along the list
+	
+	# cards <- lapply(chain, getCard)
+	elements <- list()
+	for (i in seq_along(chain)){
+		elements[[length(elements)+1]] <- getCard(chain[i])
+		# Insert arrows between cards, i.e. not after the final one
+		if (i < length(chain)){
+			elements[[length(elements)+1]] <- div(
+				style = "font-size:30px; padding:0 10px;",
+				"→"
+			)
+		}
+	}
+	
+	
+	div(
+		style = "display:flex; margin-bottom:15px; align-items:center;",
+		elements
+	)
+}
+
+renderAllChains <- function(result){
+	# Given the output of findChain(), parse all constituent chains
+	if (is.null(result)){
+		# Return some sort of default value
+		card("Not possible")
+	} else{
+		chains <- lapply(result, renderChain)
+		do.call(tagList, chains)
+	}
+	
+}
+
 getEggNames <- function(groupName){
 	# Given the big species table, which contains egg group names in lists,
 	# subset the table to just those in that group.

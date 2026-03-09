@@ -89,8 +89,8 @@ uiF <- page_sidebar(
 						 ),
 				# Part 2: Output area
 				card("Output area",
-						 # someUIfunction("tmp")
-						 "Chains go here"),
+						 uiOutput("chainResults")
+						 ),
 				col_widths = c(12,12) # max out their widths, so they appear as rows
 			)
 		)
@@ -181,15 +181,15 @@ serverF <- function(input, output) {
 		input$buttonMoves,
 		ignoreNULL = FALSE,
 		{
-			findChains(sourcePok(), targetPok(), input$movePicker)
+			findChain(sourcePok(), targetPok(), input$movePicker)
 		}
 	)
 	
 	# Display the list of chains from Source to Target
-	# output$tmp <- someRenderUIFunction({
-	# 	doMoveCheck() %>%
-	# 		idk()
-	# 	})
+	output$chainResults <- renderUI({
+		doMoveCheck() %>%
+			renderAllChains()
+		})
 	
 }
 
