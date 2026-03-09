@@ -78,13 +78,19 @@ uiF <- page_sidebar(
 				# Part 1: Selection area
 				card("Selection area",
 						 layout_columns(
-						 	cardUI("Source", "Select a source Pokemon"),
-						 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
-						 	cardUI("Target", "Select a target Pokemon")
-						 	)
+							 	layout_columns(
+								 	cardUI("Source", "Select a source Pokemon"),
+								 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
+								 	cardUI("Target", "Select a target Pokemon")
+							 	),
+							 	input_task_button("buttonMoves", "Check if possible"),
+							 	col_widths = c(12,12) # force the button to exist underneath
+						  )
 						 ),
 				# Part 2: Output area
-				card("Output area"),
+				card("Output area",
+						 # someUIfunction("tmp")
+						 "Chains go here"),
 				col_widths = c(12,12) # max out their widths, so they appear as rows
 			)
 		)
@@ -169,6 +175,21 @@ serverF <- function(input, output) {
 			options = list(maxItems = 1)
 		)
 	})
+	
+	# When user pushes the button, calculate possible chains from Source to Target
+	doMoveCheck <- eventReactive(
+		input$buttonMoves,
+		ignoreNULL = FALSE,
+		{
+			findChains(sourcePok(), targetPok(), input$movePicker)
+		}
+	)
+	
+	# Display the list of chains from Source to Target
+	# output$tmp <- someRenderUIFunction({
+	# 	doMoveCheck() %>%
+	# 		idk()
+	# 	})
 	
 }
 
