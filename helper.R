@@ -242,14 +242,19 @@ findChain <- function(P1, P2, MoveName){
 	# If there are multiple options of the same length, returns a list of lists
 	# if P2 is unreachable from P1, returns NULL instead
 	
-	eggs <- getEggs()
 	# Defensive coding
 	if (!is.numeric(P1)) P1 <- name2num(P1)
 	if (!is.numeric(P2)) P2 <- name2num(P2)
 	if (P1 == 0 || P2 == 0) return(NULL)
 	if (P1 == P2) return(list(c(P1)))
 	
+	# short-circuit if target cannot learn the selected move
+	if (!missing(MoveName) && !(canInherit(P2, MoveName))){
+		return(NULL)
+	}
+	
 	# Initialize search variables
+	eggs <- getEggs()
 	queue <- c(P1)
 	distance <- rep(Inf, max(eggs$Number))
 	distance[P1] <- 0
@@ -279,7 +284,7 @@ findChain <- function(P1, P2, MoveName){
 			new_dist <- distance[current] + 1
 			
 			# First, see if we should even consider this one at all:
-			if (!missing(MoveName) && !(canInherit(current, MoveName))){
+			if (!missing(MoveName) && !(canInherit(neighbor, MoveName))){
 				next
 			}
 			
