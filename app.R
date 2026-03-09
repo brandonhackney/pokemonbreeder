@@ -43,9 +43,10 @@ uiF <- page_sidebar(
 											 ),
 					helpText("List all possible mates for the selected Pokemon,
 									 given the selected gender. For example, Bulbasaur♀
-									 can breed with Nidoran♂, but not Nidoran♀.
-									 \n
-									 Ditto is a special case and is always treated as a mother here.")
+									 can breed with Nidoran♂, but not Nidoran♀.",
+									 p(),
+									 p(),
+									 "Ditto is a special case and is always treated as a mother here.")
 				),
 				textOutput("Tally"),
 				uiOutput("cardContainer")
@@ -61,6 +62,7 @@ uiF <- page_sidebar(
 									 Hovering over a Pokemon highlights its compatible mates.
 									 Clicking locks this selection.
 									 You can click and drag nodes to help rearrange as needed.",
+									 p(),
 									 p(),
 									 "Blue lines represent breeding compatibility,
 									 yellow lines represent evolutionary chains."),
