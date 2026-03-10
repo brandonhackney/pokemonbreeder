@@ -275,10 +275,11 @@ findChain <- function(P1, P2, MoveName){
 		
 		# See if P2 is in the list of mates for the current check
 		# If so, mark it as "found"
-		mateList <- getNumbers(eggs$Name[current])
+		mateList <- getMates(eggs$Name[current], "out") %>% name2num()
 		if (P2 %in% mateList) {
 			parents[[P2]] <- c(parents[[P2]], current)
 			found_depth <- distance[current] + 1
+			next
 		}
 		
 		# If P2 not found in this layer, restrict search to those who cross groups
