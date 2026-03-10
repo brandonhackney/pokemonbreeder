@@ -236,7 +236,7 @@ canInherit <- function(Pok, Move){
 	# load the move table and check your values
 	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
 		filter(pokemon == fname) %>% 
-		filter(move == Move) %>%
+		filter(Name == Move) %>%
 		nrow() > 0
 }
 
