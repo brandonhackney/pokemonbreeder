@@ -4,13 +4,8 @@ source("helper.R")
 source("graphs.R")
 source("selectorUI.R")
 
-initGens()
 vgList <- getVGNested()
-
 setActiveVersion("gold-silver")
-
-# eggs <- getEggs()
-# genList <- getGens() %>% pull(name) 
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(

@@ -10,6 +10,7 @@ library(this.path)
 # and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
 .pokeData$path <- this.path::this.dir() # location of this script
+initGens()
 initData <- function(){
 	.pokeData$eggs <- getSpeciesTable()
 	.pokeData$graph <- buildGraph()
