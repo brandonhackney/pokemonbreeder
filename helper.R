@@ -512,9 +512,11 @@ getMovesFromAPI <- function(generation, subgroup){
 	
 	# Next, iterate through each pokemon in dex to get its legal moves
 	results <- list()
-	for (p in dex) {
+	for (i in 1:nrow(dex)) {
+		p <- dex$name[i]
+		n <- dex$number[i]
 		message("Getting moves for ", p)
-		dat <- paste0("https://pokeapi.co/api/v2/pokemon/", p) %>% 
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon/", n) %>% 
 			hitAPI()
 		for (j in 1:nrow(dat$moves)) {
 			# this will have all moves that are legal in ANY game
@@ -591,15 +593,27 @@ getPokedexFromAPI <- function(generation){
 	# Returns an unordered, unformatted list of possible Pokemon
 	# Used by other functions to grab more data, build dataframes, etc.
 	genList <- getCumulativeGens(generation)
-	dex <- c()
+	dex <- list()
+	n <- 0
 	for (gen in genList) {
 		dat <- getGenURL(gen) %>% 
 			hitAPI()
-		for (i in dat$pokemon_species$name){
-			dex <- c(dex, i)
+		for (i in 1:nrow(dat$pokemon_species)){
+			n <- n+1
+			name <- dat$pokemon_species$name[i]
+			number <- dat$pokemon_species$url[i] %>% 
+				path.split() %>% 
+				unlist() %>% 
+				tail(1) %>% 
+				as.numeric()
+				
+			dex[[n]] <- data.frame(
+				name = name,
+				number = number)
 			}
 	}
-	dex <- unique(dex)
+	dex <- do.call(rbind,dex) %>%
+		arrange(across(number))
 }
 
 getSpeciesTable <- function(){
@@ -637,11 +651,13 @@ buildSpeciesTable <- function(generation){
 		EvolveDetails = list()
 	)
 	# Now iterate through that list to extract key info
-	for (pok in dex){
+	for (i in 1:nrow(dex)){
+		pok <- dex$name[i]
+		num <- dex$number[i]
 		# pok is a "reference name" used by PokeAPI
 		# use it to extract a formatted name for display, along with other info
 		message(pok)
-		dat <- paste0("https://pokeapi.co/api/v2/pokemon-species/", pok) %>% 
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon-species/", num) %>% 
 			hitAPI()
 		# evolution chain number: an index specific to PokeAPI
 		evChNum <- dat$evolution_chain$url %>%
@@ -651,7 +667,7 @@ buildSpeciesTable <- function(generation){
 			as.numeric()
 		# Identify previous evolution form and what it takes to evolve
 		prevForm <- dat$evolves_from_species$name
-		if (!is.null(prevForm) && prevForm %in% dex){
+		if (!is.null(prevForm) && prevForm %in% dex$name){
 			evoDat <- getEvoDetails(evChNum, pok)
 		} else {
 			# If the identified evolution isn't valid for this gen,
