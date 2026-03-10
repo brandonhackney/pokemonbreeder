@@ -114,19 +114,23 @@ renderChain <- function(chain){
 	# cards <- lapply(chain, getCard)
 	elements <- list()
 	for (i in seq_along(chain)){
-		elements[[length(elements)+1]] <- getCard(chain[i])
+		elements[[length(elements)+1]] <- div(
+			style = "breeding-card",
+			getCard(chain[i])
+		)
+		
 		# Insert arrows between cards, i.e. not after the final one
 		if (i < length(chain)){
 			elements[[length(elements)+1]] <- div(
-				style = "font-size:30px; padding:0 10px;",
-				"→"
+				class = "chain-arrow",
+				HTML("&rarr;")
 			)
 		}
 	}
 	
-	
+	# Wrap all elements in a container div
 	div(
-		style = "display:flex; margin-bottom:15px; align-items:center;",
+		class = "breeding-chain",
 		elements
 	)
 }
