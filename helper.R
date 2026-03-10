@@ -10,7 +10,6 @@ library(this.path)
 # and define getter functions that access the data
 .pokeData <- new.env(parent = emptyenv())
 .pokeData$path <- this.path::this.dir() # location of this script
-initGens()
 initData <- function(){
 	.pokeData$eggs <- getSpeciesTable()
 	.pokeData$graph <- buildGraph()
@@ -792,3 +791,6 @@ getGenURL <- function(generation){
 		filter(name == generation) %>% 
 		pull(url)
 }
+
+# Run this at the end of the script, after it's been defined
+initGens()
