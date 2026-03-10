@@ -391,18 +391,24 @@ loadMovesets <- function(generation, subgroup){
 		getLocalPath(),
 		paste0("movesets_", subgroup, ".rds")
 	)
+	# Load existing or else download
 	if (file.exists(fname)){
 		moves <- readRDS(fname)
 	} else {
 		moves <- getMovesFromAPI(generation, subgroup)
 		saveRDS(moves, fname)
 	}
+	# Insert display version of names (e.g. "Hyper Beam" not "hyper-beam")
+	if (!("Name" %in% colnames(moves))){
+		moves <- addNamesToMovelist(moves)
+		saveRDS(moves, fname)
+	} 
+		
 	return(moves)
 }
 
 listMoves <- function(Pokemon){
 	# Produce a list of all moves the selected Pokemon can learn in this version
-	# Returned values are the "slug" move names, which can be reformatted later
 	if (is.numeric(Pokemon)){
 		Pokemon <- num2name(Pokemon)
 	}
@@ -413,7 +419,7 @@ listMoves <- function(Pokemon){
 	# Use the slug name to index the move column of the moveset table
 	output <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
 		filter(pokemon == fname) %>% 
-		pull(move)
+		pull(Name)
 	return(output)
 }
 
@@ -534,9 +540,32 @@ getMovesFromAPI <- function(generation, subgroup){
 		} # for all possible moves this pokemon has
 	} # for each pokemon in the dex
 	
-	# some final step
-	do.call(rbind, results) %>% return()
+	# convert the list of data frames to a unified data frame
+	do.call(rbind, results)
+}
+
+addNamesToMovelist <- function(moveList){
+	# Fetch the nicely-formatted versions of each move name,
+	# Pair it with the ugly version of the name in a new dataframe,
+	# and perform a "join" against the original dataframe.
+	moveSlugs <- moveList %>% 
+		select(move) %>% 
+		unique()
+	moveTable <- list()
+	for (i in 1:nrow(moveSlugs)){
+		move <- moveSlugs$move[i]
+		message(move)
+		moveName <- getMoveNameFromAPI(move) # formatted name
+		# insert the name pair as a new row in a list
+		moveTable[[i]] <- data.frame(
+					mname = move,
+					Name = moveName,
+					stringsAsFactors = FALSE
+				)
+	}
+	moveTable <- do.call(rbind, moveTable) # convert to dataframe from list
 	
+	left_join(moveList, moveTable, by = join_by(move == mname) )
 }
 
 getPokedex <- function(generation){
