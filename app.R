@@ -58,6 +58,7 @@ uiF <- page_sidebar(
 			page_sidebar(
 				# title = "Pokemon Breeding Assistant",
 				sidebar = sidebar(
+					cardUI("graphName", "Selected Pokemon:"),
 					helpText("You can interact with this graph! Scroll to zoom.
 									 Hovering over a Pokemon highlights its compatible mates.
 									 Clicking locks this selection.
@@ -164,9 +165,15 @@ serverF <- function(input, output) {
 	# Leave this as reactive so it only updates when viewed
 	output$fullGraph <- renderVisNetwork({
 		# tmp <- input$genRadio
-		getGraph() %>% renderGraph()
+		getGraph() %>% renderGraph() %>% visLegend()
 	}) %>% 
 		bindCache(input$genRadio)
+	
+	observe({
+		nodeSelection <- graphPok()
+		visNetworkProxy("fullGraph") %>% 
+			visSelectNodes(id = nodeSelection)
+	})
 	
 	# Get the list of moves choices for the source Pokemon
 	# Update dropdown options based on selected generation
