@@ -220,6 +220,32 @@ getNumbers <- function(Pokemon){
 	return(candidates)
 }
 
+eggWillBe <- function(mother){
+	# Generally, it's the most unevolved form of the mother Pokemon
+	# But there's a 50/50 chance that Nidoran-F lays an egg with Nidoran-M.
+	# Since that's what's necessary for breeding chains, return him.
+	eggs <- getEggs()
+	# Nidoran special case
+	if (mother == "nidoran-f"){
+		return("nidoran-m")
+	}
+	# otherwise:
+	# Step backward through the evolutionary tree to find the base form
+	pname <- mother
+	known <- FALSE
+	while (!(known)){
+		evFrom <- eggs %>% 
+			filter(fname == pname) %>% 
+			pull(EvolvesFrom)
+		if (is.na(evFrom)) {
+			known <- TRUE
+		} else {
+			pname <- evFrom
+		}
+	}
+	return(pname)
+}
+
 canInherit <- function(Pok, Move){
 	# Can the selected Pokemon inherit the selected move? True or False
 	# find the name as it's formatted in the move table
@@ -232,7 +258,7 @@ canInherit <- function(Pok, Move){
 			filter(Name == Pok) %>% 
 			pull(fname)
 	}
-	
+	fname <- eggWillBe(fname)
 	# load the move table and check your values
 	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
 		filter(pokemon == fname) %>% 
@@ -250,12 +276,14 @@ findChain <- function(P1, P2, MoveName){
 	if (!is.numeric(P1)) P1 <- name2num(P1)
 	if (!is.numeric(P2)) P2 <- name2num(P2)
 	if (P1 == 0 || P2 == 0) return(NULL)
-	if (P1 == P2) return(list(c(P1)))
+	
 	
 	# short-circuit if target cannot learn the selected move
 	if (!missing(MoveName) && !(canInherit(P2, MoveName))){
 		return(NULL)
 	}
+	# If 1:1 and the hatched form can inherit the move, then return this:
+	if (P1 == P2) return(list(c(P1)))
 	
 	# Initialize search variables
 	eggs <- getEggs()
@@ -413,12 +441,12 @@ listMoves <- function(Pokemon){
 		Pokemon <- num2name(Pokemon)
 	}
 	# Convert from nicely-formatted name to slug name
-	fname <- getEggs() %>%
+	pname <- getEggs() %>%
 		filter(Name == Pokemon) %>%
 		pull(fname)
 	# Use the slug name to index the move column of the moveset table
 	output <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
-		filter(pokemon == fname) %>% 
+		filter(pokemon == pname) %>% 
 		pull(Name)
 	return(output)
 }
