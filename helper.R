@@ -546,28 +546,69 @@ getMovesFromAPI <- function(generation, subgroup){
 	do.call(rbind, results)
 }
 
+getMoveDictionary <- function(fname){
+	# Store and retrieve a "dictionary" linking slugs to formatted names.
+	# Instead of saving move names uniquely per game, since so many get reused,
+	# keep a single compendium of move names to check against.
+	# Update this local list as you encounter new moves in new generations,
+	# i.e. don't just download a massive list of all possible move upfront.
+	if (file.exists(fname)){
+		dictionary <- readRDS(fname)
+	} else {
+		# Establish one based on the currently selected game
+		dictionary <- data.frame(
+			move = character(0),
+			Name = character(0)
+		)
+	}
+	return(dictionary)
+}
+
+updateDictionary <- function(dictionary, moveList){
+	# Given a character vector of move slugs known to not exist in the dictionary,
+	# get the associated nicely-formatted names via the API and update our file.
+	for (move in moveList){
+		moveName <- getMoveNameFromAPI(move) # formatted name
+		dictionary <- dictionary %>% 
+			add_row(
+				move = move,
+				Name = moveName
+			)
+	}
+	return(dictionary)
+}
+
+checkDictionary <- function(moveList){
+	# Given a character vector of move slugs, which may contain duplicates,
+	# return the associated values in the move dictionary.
+	# If any names are requested that aren't in the dictionary yet,
+	# update the dictionary then proceed as normal.
+	fname <- "move-dictionary.rds" # define once in a high-level function
+	dictionary <- getMoveDictionary(fname)
+	# see what needs to be fetched first
+	badInds <- !(moveList %in% dictionary$move)
+	if (sum(badInds) > 0){
+		badList <- moveList[badInds] %>% unique()
+		dictionary <- dictionary %>% 
+			updateDictionary(badList)
+		# Export updated variable to disk
+		saveRDS(dictionary, fname)
+	}
+	
+	return(dictionary)
+}
+
 addNamesToMovelist <- function(moveList){
 	# Fetch the nicely-formatted versions of each move name,
 	# Pair it with the ugly version of the name in a new dataframe,
 	# and perform a "join" against the original dataframe.
 	moveSlugs <- moveList %>% 
-		select(move) %>% 
+		pull(move) %>% 
 		unique()
-	moveTable <- list()
-	for (i in 1:nrow(moveSlugs)){
-		move <- moveSlugs$move[i]
-		message(move)
-		moveName <- getMoveNameFromAPI(move) # formatted name
-		# insert the name pair as a new row in a list
-		moveTable[[i]] <- data.frame(
-					mname = move,
-					Name = moveName,
-					stringsAsFactors = FALSE
-				)
-	}
-	moveTable <- do.call(rbind, moveTable) # convert to dataframe from list
 	
-	left_join(moveList, moveTable, by = join_by(move == mname) )
+	dictionary <- checkDictionary(moveSlugs)
+	
+	left_join(moveList, dictionary, by = join_by(move == move))
 }
 
 getPokedex <- function(generation){
