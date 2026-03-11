@@ -108,6 +108,45 @@ getSprite <- function(number){
 	return(webPath)
 }
 
+renderChain <- function(chain){
+	# Given a list of Pokemon numbers, render a "chain" along the list
+	
+	# cards <- lapply(chain, getCard)
+	elements <- list()
+	for (i in seq_along(chain)){
+		elements[[length(elements)+1]] <- div(
+			style = "breeding-card",
+			getCard(chain[i])
+		)
+		
+		# Insert arrows between cards, i.e. not after the final one
+		if (i < length(chain)){
+			elements[[length(elements)+1]] <- div(
+				class = "chain-arrow",
+				HTML("&rarr;")
+			)
+		}
+	}
+	
+	# Wrap all elements in a container div
+	div(
+		class = "breeding-chain",
+		elements
+	)
+}
+
+renderAllChains <- function(result){
+	# Given the output of findChain(), parse all constituent chains
+	if (is.null(result)){
+		# Return some sort of default value
+		card("Not possible")
+	} else{
+		chains <- lapply(result, renderChain)
+		do.call(tagList, chains)
+	}
+	
+}
+
 getEggNames <- function(groupName){
 	# Given the big species table, which contains egg group names in lists,
 	# subset the table to just those in that group.
@@ -181,20 +220,73 @@ getNumbers <- function(Pokemon){
 	return(candidates)
 }
 
-findChain <- function(P1, P2){
+eggWillBe <- function(mother){
+	# Generally, it's the most unevolved form of the mother Pokemon
+	# But there's a 50/50 chance that Nidoran-F lays an egg with Nidoran-M.
+	# Since that's what's necessary for breeding chains, return him.
+	eggs <- getEggs()
+	# Nidoran special case
+	if (mother == "nidoran-f"){
+		return("nidoran-m")
+	}
+	# otherwise:
+	# Step backward through the evolutionary tree to find the base form
+	pname <- mother
+	known <- FALSE
+	while (!(known)){
+		evFrom <- eggs %>% 
+			filter(fname == pname) %>% 
+			pull(EvolvesFrom)
+		if (is.na(evFrom)) {
+			known <- TRUE
+		} else {
+			pname <- evFrom
+		}
+	}
+	return(pname)
+}
+
+canInherit <- function(Pok, Move){
+	# Can the selected Pokemon inherit the selected move? True or False
+	# find the name as it's formatted in the move table
+	if (is.numeric(Pok)){
+		fname <- getEggs() %>% 
+			filter(Number == Pok) %>% 
+			pull(fname)
+	} else {
+		fname <- getEggs() %>% 
+			filter(Name == Pok) %>% 
+			pull(fname)
+	}
+	fname <- eggWillBe(fname)
+	# load the move table and check your values
+	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+		filter(pokemon == fname) %>% 
+		filter(Name == Move) %>%
+		nrow() > 0
+}
+
+findChain <- function(P1, P2, MoveName){
 	# Given the NUMBERS of two Pokemon P1 and P2,
 	# return a list of numbers giving the shortest breeding chain from P1 to P2
 	# If there are multiple options of the same length, returns a list of lists
 	# if P2 is unreachable from P1, returns NULL instead
 	
-	eggs <- getEggs()
 	# Defensive coding
 	if (!is.numeric(P1)) P1 <- name2num(P1)
 	if (!is.numeric(P2)) P2 <- name2num(P2)
 	if (P1 == 0 || P2 == 0) return(NULL)
+	
+	
+	# short-circuit if target cannot learn the selected move
+	if (!missing(MoveName) && !(canInherit(P2, MoveName))){
+		return(NULL)
+	}
+	# If 1:1 and the hatched form can inherit the move, then return this:
 	if (P1 == P2) return(list(c(P1)))
 	
 	# Initialize search variables
+	eggs <- getEggs()
 	queue <- c(P1)
 	distance <- rep(Inf, max(eggs$Number))
 	distance[P1] <- 0
@@ -211,10 +303,11 @@ findChain <- function(P1, P2){
 		
 		# See if P2 is in the list of mates for the current check
 		# If so, mark it as "found"
-		mateList <- getNumbers(eggs$Name[current])
+		mateList <- getMates(eggs$Name[current], "out") %>% name2num()
 		if (P2 %in% mateList) {
 			parents[[P2]] <- c(parents[[P2]], current)
 			found_depth <- distance[current] + 1
+			next
 		}
 		
 		# If P2 not found in this layer, restrict search to those who cross groups
@@ -222,6 +315,11 @@ findChain <- function(P1, P2){
 		
 		for (neighbor in mateList) {
 			new_dist <- distance[current] + 1
+			
+			# First, see if we should even consider this one at all:
+			if (!missing(MoveName) && !(canInherit(neighbor, MoveName))){
+				next
+			}
 			
 			# Where "current" is a parent and "neighbor" is a child:
 			# If this is the first time considering this child,
@@ -284,6 +382,12 @@ name2num <- function(nameList){
 		filter(Name %in% nameList) %>% 
 		pull(Number)
 }
+num2name <- function(numberList){
+	# Convert a list of Pokemon numbers to Pokemon names
+	getEggs() %>% 
+		filter(Number %in% numberList) %>% 
+		pull(Name)
+}
 
 
 ## Data access functions
@@ -315,13 +419,36 @@ loadMovesets <- function(generation, subgroup){
 		getLocalPath(),
 		paste0("movesets_", subgroup, ".rds")
 	)
+	# Load existing or else download
 	if (file.exists(fname)){
 		moves <- readRDS(fname)
 	} else {
 		moves <- getMovesFromAPI(generation, subgroup)
 		saveRDS(moves, fname)
 	}
+	# Insert display version of names (e.g. "Hyper Beam" not "hyper-beam")
+	if (!("Name" %in% colnames(moves))){
+		moves <- addNamesToMovelist(moves)
+		saveRDS(moves, fname)
+	} 
+		
 	return(moves)
+}
+
+listMoves <- function(Pokemon){
+	# Produce a list of all moves the selected Pokemon can learn in this version
+	if (is.numeric(Pokemon)){
+		Pokemon <- num2name(Pokemon)
+	}
+	# Convert from nicely-formatted name to slug name
+	pname <- getEggs() %>%
+		filter(Name == Pokemon) %>%
+		pull(fname)
+	# Use the slug name to index the move column of the moveset table
+	output <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+		filter(pokemon == pname) %>% 
+		pull(Name)
+	return(output)
 }
 
 ## Data acquisition functions
@@ -330,7 +457,7 @@ loadMovesets <- function(generation, subgroup){
 hitAPI <- function(pURL){
 	# Given a URL that points to a JSON file, grab the data
 	# Establish a local cache to save bandwidth
-	cacheDir <- file.path(getLocalDir(), ".cache")
+	cacheDir <- file.path(getLocalPath(), ".cache")
 	if (!dir.exists(cacheDir)){
 		dir.create(cacheDir)
 	}
@@ -393,6 +520,16 @@ getVGfromAPI <- function(generation){
 	# The url will be used later by getDataFromAPI
 }
 
+getMoveNameFromAPI <- function (moveSlug){
+	# Given the slug name for a move, return the nicely formatted name
+	# e.g. hyper-beam becomes Hyper Beam
+	dat <- paste0("https://pokeapi.co/api/v2/move/", moveSlug) %>% 
+		hitAPI()
+	dat$names %>% 
+		filter(language$name == "en") %>% 
+		pull(name)
+}
+
 getMovesFromAPI <- function(generation, subgroup){
 	# Pull a list of legal moves per Pokemon in a given game generation
 	# Input 1 should be a string as pulled from getGenList()
@@ -403,9 +540,11 @@ getMovesFromAPI <- function(generation, subgroup){
 	
 	# Next, iterate through each pokemon in dex to get its legal moves
 	results <- list()
-	for (p in dex) {
+	for (i in 1:nrow(dex)) {
+		p <- dex$name[i]
+		n <- dex$number[i]
 		message("Getting moves for ", p)
-		dat <- paste0("https://pokeapi.co/api/v2/pokemon/", p) %>% 
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon/", n) %>% 
 			hitAPI()
 		for (j in 1:nrow(dat$moves)) {
 			# this will have all moves that are legal in ANY game
@@ -431,9 +570,73 @@ getMovesFromAPI <- function(generation, subgroup){
 		} # for all possible moves this pokemon has
 	} # for each pokemon in the dex
 	
-	# some final step
-	do.call(rbind, results) %>% return()
+	# convert the list of data frames to a unified data frame
+	do.call(rbind, results)
+}
+
+getMoveDictionary <- function(fname){
+	# Store and retrieve a "dictionary" linking slugs to formatted names.
+	# Instead of saving move names uniquely per game, since so many get reused,
+	# keep a single compendium of move names to check against.
+	# Update this local list as you encounter new moves in new generations,
+	# i.e. don't just download a massive list of all possible move upfront.
+	if (file.exists(fname)){
+		dictionary <- readRDS(fname)
+	} else {
+		# Establish one based on the currently selected game
+		dictionary <- data.frame(
+			move = character(0),
+			Name = character(0)
+		)
+	}
+	return(dictionary)
+}
+
+updateDictionary <- function(dictionary, moveList){
+	# Given a character vector of move slugs known to not exist in the dictionary,
+	# get the associated nicely-formatted names via the API and update our file.
+	for (move in moveList){
+		moveName <- getMoveNameFromAPI(move) # formatted name
+		dictionary <- dictionary %>% 
+			add_row(
+				move = move,
+				Name = moveName
+			)
+	}
+	return(dictionary)
+}
+
+checkDictionary <- function(moveList){
+	# Given a character vector of move slugs, which may contain duplicates,
+	# return the associated values in the move dictionary.
+	# If any names are requested that aren't in the dictionary yet,
+	# update the dictionary then proceed as normal.
+	fname <- "move-dictionary.rds" # define once in a high-level function
+	dictionary <- getMoveDictionary(fname)
+	# see what needs to be fetched first
+	badInds <- !(moveList %in% dictionary$move)
+	if (sum(badInds) > 0){
+		badList <- moveList[badInds] %>% unique()
+		dictionary <- dictionary %>% 
+			updateDictionary(badList)
+		# Export updated variable to disk
+		saveRDS(dictionary, fname)
+	}
 	
+	return(dictionary)
+}
+
+addNamesToMovelist <- function(moveList){
+	# Fetch the nicely-formatted versions of each move name,
+	# Pair it with the ugly version of the name in a new dataframe,
+	# and perform a "join" against the original dataframe.
+	moveSlugs <- moveList %>% 
+		pull(move) %>% 
+		unique()
+	
+	dictionary <- checkDictionary(moveSlugs)
+	
+	left_join(moveList, dictionary, by = join_by(move == move))
 }
 
 getPokedex <- function(generation){
@@ -459,15 +662,27 @@ getPokedexFromAPI <- function(generation){
 	# Returns an unordered, unformatted list of possible Pokemon
 	# Used by other functions to grab more data, build dataframes, etc.
 	genList <- getCumulativeGens(generation)
-	dex <- c()
+	dex <- list()
+	n <- 0
 	for (gen in genList) {
 		dat <- getGenURL(gen) %>% 
 			hitAPI()
-		for (i in dat$pokemon_species$name){
-			dex <- c(dex, i)
+		for (i in 1:nrow(dat$pokemon_species)){
+			n <- n+1
+			name <- dat$pokemon_species$name[i]
+			number <- dat$pokemon_species$url[i] %>% 
+				path.split() %>% 
+				unlist() %>% 
+				tail(1) %>% 
+				as.numeric()
+				
+			dex[[n]] <- data.frame(
+				name = name,
+				number = number)
 			}
 	}
-	dex <- unique(dex)
+	dex <- do.call(rbind,dex) %>%
+		arrange(across(number))
 }
 
 getSpeciesTable <- function(){
@@ -505,11 +720,13 @@ buildSpeciesTable <- function(generation){
 		EvolveDetails = list()
 	)
 	# Now iterate through that list to extract key info
-	for (pok in dex){
+	for (i in 1:nrow(dex)){
+		pok <- dex$name[i]
+		num <- dex$number[i]
 		# pok is a "reference name" used by PokeAPI
 		# use it to extract a formatted name for display, along with other info
 		message(pok)
-		dat <- paste0("https://pokeapi.co/api/v2/pokemon-species/", pok) %>% 
+		dat <- paste0("https://pokeapi.co/api/v2/pokemon-species/", num) %>% 
 			hitAPI()
 		# evolution chain number: an index specific to PokeAPI
 		evChNum <- dat$evolution_chain$url %>%
@@ -519,7 +736,7 @@ buildSpeciesTable <- function(generation){
 			as.numeric()
 		# Identify previous evolution form and what it takes to evolve
 		prevForm <- dat$evolves_from_species$name
-		if (!is.null(prevForm) && prevForm %in% dex){
+		if (!is.null(prevForm) && prevForm %in% dex$name){
 			evoDat <- getEvoDetails(evChNum, pok)
 		} else {
 			# If the identified evolution isn't valid for this gen,
@@ -643,3 +860,6 @@ getGenURL <- function(generation){
 		filter(name == generation) %>% 
 		pull(url)
 }
+
+# Run this at the end of the script, after it's been defined
+initGens()

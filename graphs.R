@@ -118,6 +118,7 @@ editGraph <- function(bipGraph){
 
 # Return results from the graph
 getMates <- function(Pokemon, modeSelection){
+	# Options are "out" (father), "in" (mother), or "all"
 	if (missing(modeSelection)) {modeSelection = "all"} # default
 	eggGraph <- getGraph()
 	l <- neighbors(eggGraph, Pokemon, mode = modeSelection)

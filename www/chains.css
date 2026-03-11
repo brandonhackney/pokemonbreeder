@@ -1,0 +1,17 @@
+/* Define some CSS to make the breeding chains look prettier */
+.breeding-chain {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex: 1;
+}
+.chain-arrow {
+	font-size: 36px;
+	color: #888;
+	text-align: center;
+}
+.breeding-card {
+	min-width: 140px;
+	height: auto;
+	margin: 10px;
+}

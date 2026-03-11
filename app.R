@@ -2,17 +2,18 @@ library(shiny)
 library(bslib)
 source("helper.R")
 source("graphs.R")
+source("selectorUI.R")
 
-initGens()
 vgList <- getVGNested()
-
 setActiveVersion("gold-silver")
-
-# eggs <- getEggs()
-# genList <- getGens() %>% pull(name) 
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
+	# Load CSS for breeding chains
+	tags$head(
+		tags$link(rel = "stylesheet", type = "text/css", href = "chains.css")
+	),
+
 	# Persistent collapsible sidebar to select game generation
 	sidebar = sidebar(
 		selectInput(
@@ -33,8 +34,7 @@ uiF <- page_sidebar(
 			page_sidebar(
 				sidebar = sidebar(
 					open = "always",
-					selectizeInput("Dropdown", choices = "Bulbasaur", label = "Selected Pokemon:"),
-					uiOutput("selectionCard"),
+					cardUI("listName"),
 					radioButtons(inputId = "genderSwitch",
 											 label = "Selected gender:",
 											 choices = c("♂" = "out", "♀" = "in", "Either" = "all"),
@@ -43,9 +43,10 @@ uiF <- page_sidebar(
 											 ),
 					helpText("List all possible mates for the selected Pokemon,
 									 given the selected gender. For example, Bulbasaur♀
-									 can breed with Nidoran♂, but not Nidoran♀.
-									 \n
-									 Ditto is a special case and is always treated as a mother here.")
+									 can breed with Nidoran♂, but not Nidoran♀.",
+									 p(),
+									 p(),
+									 "Ditto is a special case and is always treated as a mother here.")
 				),
 				textOutput("Tally"),
 				uiOutput("cardContainer")
@@ -62,6 +63,7 @@ uiF <- page_sidebar(
 									 Clicking locks this selection.
 									 You can click and drag nodes to help rearrange as needed.",
 									 p(),
+									 p(),
 									 "Blue lines represent breeding compatibility,
 									 yellow lines represent evolutionary chains."),
 				),
@@ -69,6 +71,33 @@ uiF <- page_sidebar(
 			)
 			
 		), # nav_panel 2
+		# Content page 3: move selector
+		nav_panel(
+			title = "Moves",
+			layout_columns(
+				# Part 1: Selection area
+				card(
+						 helpText("Check whether the source Pokemon's selected move
+						 				 can be chain-bred to the target Pokemon.
+						 				 Displays all possible chains with the fewest steps."),
+						 layout_columns(
+							 	layout_columns(
+								 	cardUI("Source", "Source Pokemon:"),
+								 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
+								 	cardUI("Target", "Target Pokemon:"),
+								 	col_widths = c(4,4,4)
+							 	),
+							 	input_task_button("buttonMoves", "Check if possible"),
+							 	col_widths = c(12,12) # force the button to exist underneath
+						  )
+						 ),
+				# Part 2: Output area
+				card("Results:",
+						 uiOutput("chainResults")
+						 ),
+				col_widths = c(12,12) # max out their widths, so they appear as rows
+			)
+		)
 	)
 )
 # A function that runs code based on UI selections
@@ -79,22 +108,20 @@ serverF <- function(input, output) {
 		setActiveVersion(input$genRadio)
 	})
 	
-	observeEvent({input$genRadio},{
-		updateSelectizeInput(
-			session = getDefaultReactiveDomain(),
-			inputId = 'Dropdown', 
-			choices = getEggs()$Name, 
-			server = TRUE,
-			options = list(maxItems = 1)
-		)
-	})
+	genToServer <- reactive(input$genRadio)
+	# These outputs are reactives, so get the value using e.g. listPok()
+	listPok <- cardServer("listName", genToServer)
+	graphPok <- cardServer("graphName", genToServer)
+	sourcePok <- cardServer("Source", genToServer)
+	targetPok <- cardServer("Target", genToServer)
+	
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
-		req(input$genRadio, input$Dropdown)
+		req(input$genRadio, listPok())
 		tmp <- input$genRadio # dummy call so it checks this var
 		# getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
-		getMates(input$Dropdown, input$genderSwitch)
+		getMates(listPok(), input$genderSwitch)
 	})
 	
 	# Tally number of mates, but if result contains 0, that means none, not 1
@@ -110,25 +137,12 @@ serverF <- function(input, output) {
 	
 	# Count the number of results and display
 	getName <- reactive({
-		req(input$Dropdown)
-		c(input$Dropdown, "has", getCount(), "potential mates")
+		req(listPok())
+		c(listPok(), "has", getCount(), "potential mates")
 	})
 	
 	output$Tally <-  renderText({
 		getName()
-	})
-	
-	# Get the number of the selected Pokemon
-	selectionNumber <- reactive({
-		req(input$Dropdown)
-		 name2num(input$Dropdown)
-	})
-	
-	# Create a card of the selected Pokemon
-	output$selectionCard <- renderUI({
-		req(input$genRadio)
-		tmp <- input$genRadio # dummy call so it checks this var
-		selCard <- getCard(selectionNumber())
 	})
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
@@ -153,6 +167,36 @@ serverF <- function(input, output) {
 		getGraph() %>% renderGraph()
 	}) %>% 
 		bindCache(input$genRadio)
+	
+	# Get the list of moves choices for the source Pokemon
+	# Update dropdown options based on selected generation
+	observe({
+		req(input$genRadio, sourcePok())
+		updateSelectizeInput(
+			session = getDefaultReactiveDomain(),
+			inputId = 'movePicker', 
+			choices = listMoves(sourcePok()), 
+			server = TRUE,
+			options = list(maxItems = 1)
+		)
+	}) %>% 
+		bindEvent(input$genRadio, sourcePok())
+	
+	# When user pushes the button, calculate possible chains from Source to Target
+	doMoveCheck <- eventReactive(
+		input$buttonMoves,
+		ignoreNULL = FALSE,
+		{
+			findChain(sourcePok(), targetPok(), input$movePicker)
+		}
+	)
+	
+	# Display the list of chains from Source to Target
+	output$chainResults <- renderUI({
+		doMoveCheck() %>%
+			renderAllChains()
+		})
+	
 }
 
 # Activate the server with the defined UI
