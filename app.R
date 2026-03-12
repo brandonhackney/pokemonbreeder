@@ -83,20 +83,17 @@ uiF <- page_sidebar(
 				sidebar = sidebar(
 					open = "always",
 					width = 300,
-					
-					
 					 helpText("Check whether the source Pokemon's selected move
 					 				 can be chain-bred to the target Pokemon.
 					 				 Displays all possible chains with the fewest steps."),
-					selectizeInput("movePicker", choices = "-", label = "Select a move"),
-				 	
 					layout_columns(
 						cardUI("Source", "Source Pokemon:"),
 						cardUI("Target", "Target Pokemon:"),
 					),
+					selectizeInput("movePicker", choices = "-", label = "Select a move"),
 					input_task_button("buttonMoves", "Check if possible"),
-				 	
 				 ),
+				
 				# Part 2: Output area
 					"Results:",
 					visNetworkOutput("chainResults")
