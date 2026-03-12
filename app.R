@@ -78,28 +78,28 @@ uiF <- page_sidebar(
 		# Content page 3: move selector
 		nav_panel(
 			title = "Moves",
-			layout_columns(
+			page_sidebar(
 				# Part 1: Selection area
-				card(
-						 helpText("Check whether the source Pokemon's selected move
-						 				 can be chain-bred to the target Pokemon.
-						 				 Displays all possible chains with the fewest steps."),
-						 layout_columns(
-							 	layout_columns(
-								 	cardUI("Source", "Source Pokemon:"),
-								 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
-								 	cardUI("Target", "Target Pokemon:"),
-								 	col_widths = c(4,4,4)
-							 	),
-							 	input_task_button("buttonMoves", "Check if possible"),
-							 	col_widths = c(12,12) # force the button to exist underneath
-						  )
-						 ),
+				sidebar = sidebar(
+					open = "always",
+					width = 300,
+					
+					
+					 helpText("Check whether the source Pokemon's selected move
+					 				 can be chain-bred to the target Pokemon.
+					 				 Displays all possible chains with the fewest steps."),
+					selectizeInput("movePicker", choices = "-", label = "Select a move"),
+				 	
+					layout_columns(
+						cardUI("Source", "Source Pokemon:"),
+						cardUI("Target", "Target Pokemon:"),
+					),
+					input_task_button("buttonMoves", "Check if possible"),
+				 	
+				 ),
 				# Part 2: Output area
-				card("Results:",
-						 visNetworkOutput("chainResults")
-						 ),
-				col_widths = c(12,12) # max out their widths, so they appear as rows
+					"Results:",
+					visNetworkOutput("chainResults")
 			)
 		)
 	)
