@@ -2,7 +2,7 @@ library(shiny)
 
 cardUI <- function(id, labelText = "Selected Pokemon:"){
 	tagList(
-		selectizeInput(NS(id, "Dropdown"), choices = "Bulbasaur", label = labelText),
+		selectizeInput(NS(id, "Dropdown"), choices = NULL, label = labelText),
 		uiOutput(NS(id, "selectionCard")),
 	)
 }
