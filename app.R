@@ -5,7 +5,8 @@ source("graphs.R")
 source("selectorUI.R")
 
 vgList <- getVGNested()
-setActiveVersion("gold-silver")
+dflt <- "gold-silver"
+setActiveVersion(dflt)
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
@@ -17,11 +18,13 @@ uiF <- page_sidebar(
 	# Persistent collapsible sidebar to select game generation
 	sidebar = sidebar(
 		selectInput(
-			inputId = "genRadio",
-			label = "Select a game generation",
+			inputId = "genSelect",
+			label = "Select a game version",
 			choices = vgList[-1]
 		),
-		helpText("You can collapse this sidebar after making a selection")
+		input_task_button("genActivator", "Activate"),
+		helpText("You must push the button for changes to take effect.
+						 You can collapse this sidebar afterwards.")
 	),
 	title = "Pokemon Breeding Assistant",
 	# Nav pane on bottom to switch between modes e.g. list, graph
@@ -66,6 +69,7 @@ uiF <- page_sidebar(
 									 p(),
 									 "Blue lines represent breeding compatibility,
 									 yellow lines represent evolutionary chains."),
+					uiOutput("graphName")
 				),
 				visNetworkOutput("fullGraph")
 			)
@@ -103,23 +107,24 @@ uiF <- page_sidebar(
 # A function that runs code based on UI selections
 serverF <- function(input, output) {
 	# Perform the following actions ONLY AFTER the game version changes
-	observeEvent({input$genRadio},{
+	observeEvent({input$genActivator},{
 		# Update the backend data
-		setActiveVersion(input$genRadio)
+		setActiveVersion(input$genSelect)
+		genToServer(input$genSelect)
 	})
 	
-	genToServer <- reactive(input$genRadio)
+	genToServer <- reactiveVal(dflt)
+	
 	# These outputs are reactives, so get the value using e.g. listPok()
 	listPok <- cardServer("listName", genToServer)
-	graphPok <- cardServer("graphName", genToServer)
 	sourcePok <- cardServer("Source", genToServer)
 	targetPok <- cardServer("Target", genToServer)
 	
 	
 	# Decide which egg groups to display based on input name
 	displayList <- reactive({
-		req(input$genRadio, listPok())
-		tmp <- input$genRadio # dummy call so it checks this var
+		req(genToServer(), listPok())
+		tmp <- genToServer() # dummy call so it checks this var
 		# getNumbers(input$Dropdown) # outputs a list of Pokemon numbers
 		getMates(listPok(), input$genderSwitch)
 	})
@@ -147,7 +152,7 @@ serverF <- function(input, output) {
 	
 	# Generate a "tag list" referencing the objects, used by uiOutput()
 	output$cardContainer <- renderUI({
-		tmp <- input$genRadio # dummy call so it checks this var
+		tmp <- genToServer() # dummy call so it checks this var
 		card_list <- lapply(displayList(), getCard)
 		card_list$cellArgs <- list(
 			style = "
@@ -163,15 +168,23 @@ serverF <- function(input, output) {
 	# Render the visNetwork graph
 	# Leave this as reactive so it only updates when viewed
 	output$fullGraph <- renderVisNetwork({
-		# tmp <- input$genRadio
-		getGraph() %>% renderGraph()
+		# tmp <- genToServer()
+		getGraph() %>% renderGraph() %>%
+			visLegend()
 	}) %>% 
-		bindCache(input$genRadio)
+		bindCache(genToServer())
+	
+	# Clicking a node in the graph updates the selector
+	chosenNode <- reactive({input$fullGraph_selected})
+	output$graphName <- renderUI({
+		req(chosenNode())
+		chosenNode() %>% getCard()
+	})
 	
 	# Get the list of moves choices for the source Pokemon
 	# Update dropdown options based on selected generation
 	observe({
-		req(input$genRadio, sourcePok())
+		req(genToServer(), sourcePok())
 		updateSelectizeInput(
 			session = getDefaultReactiveDomain(),
 			inputId = 'movePicker', 
@@ -180,12 +193,13 @@ serverF <- function(input, output) {
 			options = list(maxItems = 1)
 		)
 	}) %>% 
-		bindEvent(input$genRadio, sourcePok())
+		bindEvent(genToServer(), sourcePok())
 	
 	# When user pushes the button, calculate possible chains from Source to Target
 	doMoveCheck <- eventReactive(
 		input$buttonMoves,
 		ignoreNULL = FALSE,
+		ignoreInit = TRUE,
 		{
 			findChain(sourcePok(), targetPok(), input$movePicker)
 		}
