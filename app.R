@@ -5,7 +5,8 @@ source("graphs.R")
 source("selectorUI.R")
 
 vgList <- getVGNested()
-setActiveVersion("gold-silver")
+dflt <- "gold-silver"
+setActiveVersion(dflt)
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
@@ -109,15 +110,10 @@ serverF <- function(input, output) {
 	observeEvent({input$genActivator},{
 		# Update the backend data
 		setActiveVersion(input$genSelect)
+		genToServer(input$genSelect)
 	})
 	
-	genToServer <- eventReactive(
-		input$genActivator,
-		ignoreNULL = TRUE,
-		{
-			input$genSelect
-		}
-	)
+	genToServer <- reactiveVal(dflt)
 	
 	# These outputs are reactives, so get the value using e.g. listPok()
 	listPok <- cardServer("listName", genToServer)
