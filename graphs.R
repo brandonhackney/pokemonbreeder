@@ -49,6 +49,11 @@ dittoVis <- function(graph){
 	# For visualization purposes, strip out 90% of edges pointing to Ditto,
 	# but leave the Neuter group containing Staryu and Voltorb.
 	# Otherwise the graph becomes illegible.
+	
+	if (!"Ditto" %in% V(graph)$name) {
+		return(graph)
+	}
+	
 	eggs <- getEggs()
 	# First, just strip out ANYTHING pointing to or from Ditto.
 	toDittoEdges <- E(graph)[eggs$Name %--% "Ditto"]
@@ -165,6 +170,10 @@ insertEvoEdges <- function(eggGraph){
 	# Consult the Pokedex to establish who evolves into who
 	# Add those as a new type of edge to the igraph object
 	edges <- getEvoEdges()
+	validNames <- V(eggGraph)$name
+	edges <- edges %>% 
+		filter(from %in% validNames) %>% 
+		filter(to %in% validNames)
 	# Flatten from table to paired vector
 	edgeList <- edges %>% 
 		as.matrix() %>% 

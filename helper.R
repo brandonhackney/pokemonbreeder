@@ -137,12 +137,36 @@ renderChain <- function(chain){
 
 renderAllChains <- function(result){
 	# Given the output of findChain(), parse all constituent chains
+	# For visNetwork, we'll trust that the paths are already encoded in the graph
+	# So just return the unique nodes of the result and filter the graph to that.
 	if (is.null(result)){
-		# Return some sort of default value
-		card("Not possible")
+		return(result)
 	} else{
-		chains <- lapply(result, renderChain)
-		do.call(tagList, chains)
+		# Get information about graph hierarchy
+		chains <- result %>% unlist()
+		P1 <- chains[1] %>% num2name()
+		P2 <- chains %>% tail(1) %>% num2name()
+		chainMatrix <- chains %>% 
+			matrix(
+				nrow = length(result),
+				ncol = length(result[[1]]),
+				byrow = TRUE
+			)
+		# Get list of vertices to remove from graph
+		nodeNames <- chains %>%  num2name()
+		removeList <- getEggs() %>% 
+			filter(!Name %in% nodeNames) %>% 
+			pull(Name)
+		# Apply modifications
+		graph <- getGraph()
+		graph <- graph %>% 
+			delete_vertices(removeList)
+		# Set hierarchy level
+		for (i in 1:ncol(chainMatrix)){
+			nodeList <- chainMatrix[,i]  %>% num2name()
+			V(graph)$level[V(graph)$name %in% nodeList] <- i
+		}
+		return(graph)
 	}
 	
 }

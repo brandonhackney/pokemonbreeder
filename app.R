@@ -97,7 +97,7 @@ uiF <- page_sidebar(
 						 ),
 				# Part 2: Output area
 				card("Results:",
-						 uiOutput("chainResults")
+						 visNetworkOutput("chainResults")
 						 ),
 				col_widths = c(12,12) # max out their widths, so they appear as rows
 			)
@@ -206,9 +206,19 @@ serverF <- function(input, output) {
 	)
 	
 	# Display the list of chains from Source to Target
-	output$chainResults <- renderUI({
-		doMoveCheck() %>%
+	output$chainResults <- renderVisNetwork({
+		result <- doMoveCheck() %>%
 			renderAllChains()
+		if (is.null(result)){
+			# No data - Display message
+			visNetwork(nodes = data.frame(id=1, label="No Results", 
+																		shape="text", font.size=30)) %>%
+				visEdges(hidden = TRUE)
+		} else {
+			result %>% 
+				renderGraph() %>% 
+				visHierarchicalLayout(direction = "LR")
+		}
 		})
 	
 }
