@@ -194,6 +194,7 @@ serverF <- function(input, output) {
 	doMoveCheck <- eventReactive(
 		input$buttonMoves,
 		ignoreNULL = FALSE,
+		ignoreInit = TRUE,
 		{
 			findChain(sourcePok(), targetPok(), input$movePicker)
 		}
