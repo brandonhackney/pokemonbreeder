@@ -292,16 +292,15 @@ canInherit <- function(Pok, Move){
 			pull(fname)
 	}
 	fnames <- eggWillBe(fname)
-	# load the move table and check your values
-	output <- c()
-	for (fname in fnames){
-		check <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
-			filter(pokemon %in% fname) %>% 
-			filter(Name == Move) %>%
-			nrow() > 0
-		output <- append(output, check)
-	}
-	return(output)
+	# Which ones can inherit?
+	check <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+		# load the move table and check your values
+		filter(pokemon %in% fnames) %>% 
+		filter(Name == Move) %>%
+		pull(pokemon) %>% 
+		unique() # just in case??
+	# Convert to logical
+	fnames %in% check
 }
 
 findChain <- function(P1, P2, MoveName){
