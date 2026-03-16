@@ -10,10 +10,6 @@ setActiveVersion(dflt)
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
-	# Load CSS for breeding chains
-	tags$head(
-		tags$link(rel = "stylesheet", type = "text/css", href = "chains.css")
-	),
 
 	# Persistent collapsible sidebar to select game generation
 	sidebar = sidebar(
@@ -78,28 +74,25 @@ uiF <- page_sidebar(
 		# Content page 3: move selector
 		nav_panel(
 			title = "Moves",
-			layout_columns(
+			page_sidebar(
 				# Part 1: Selection area
-				card(
-						 helpText("Check whether the source Pokemon's selected move
-						 				 can be chain-bred to the target Pokemon.
-						 				 Displays all possible chains with the fewest steps."),
-						 layout_columns(
-							 	layout_columns(
-								 	cardUI("Source", "Source Pokemon:"),
-								 	selectizeInput("movePicker", choices = "-", label = "Select a move"),
-								 	cardUI("Target", "Target Pokemon:"),
-								 	col_widths = c(4,4,4)
-							 	),
-							 	input_task_button("buttonMoves", "Check if possible"),
-							 	col_widths = c(12,12) # force the button to exist underneath
-						  )
-						 ),
+				sidebar = sidebar(
+					open = "always",
+					width = 300,
+					 helpText("Check whether the source Pokemon's selected move
+					 				 can be chain-bred to the target Pokemon.
+					 				 Displays all possible chains with the fewest steps."),
+					layout_columns(
+						cardUI("Source", "Source Pokemon:"),
+						cardUI("Target", "Target Pokemon:"),
+					),
+					selectizeInput("movePicker", choices = "-", label = "Select a move"),
+					input_task_button("buttonMoves", "Check if possible"),
+				 ),
+				
 				# Part 2: Output area
-				card("Results:",
-						 uiOutput("chainResults")
-						 ),
-				col_widths = c(12,12) # max out their widths, so they appear as rows
+					"Results:",
+					visNetworkOutput("chainResults")
 			)
 		)
 	)
@@ -196,20 +189,21 @@ serverF <- function(input, output) {
 		bindEvent(genToServer(), sourcePok())
 	
 	# When user pushes the button, calculate possible chains from Source to Target
-	doMoveCheck <- eventReactive(
-		input$buttonMoves,
-		ignoreNULL = FALSE,
-		ignoreInit = TRUE,
-		{
-			findChain(sourcePok(), targetPok(), input$movePicker)
-		}
-	)
+	doMoveCheck <- reactive({input$buttonMoves})
 	
 	# Display the list of chains from Source to Target
-	output$chainResults <- renderUI({
-		doMoveCheck() %>%
-			renderAllChains()
-		})
+	output$chainResults <- renderVisNetwork({
+		result <- getPath(sourcePok(), targetPok(), input$movePicker)
+		if (is.null(result)){
+			# No data - Display message
+			visNetwork(nodes = data.frame(id=1, label="No Results", 
+																		shape="text", font.size=30)) %>%
+				visEdges(hidden = TRUE)
+		} else {
+			result %>% 
+				renderChains(sourcePok())
+		}
+		}) %>% bindEvent(doMoveCheck(), ignoreInit = TRUE)
 	
 }
 

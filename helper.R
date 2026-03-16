@@ -137,12 +137,36 @@ renderChain <- function(chain){
 
 renderAllChains <- function(result){
 	# Given the output of findChain(), parse all constituent chains
+	# For visNetwork, we'll trust that the paths are already encoded in the graph
+	# So just return the unique nodes of the result and filter the graph to that.
 	if (is.null(result)){
-		# Return some sort of default value
-		card("Not possible")
+		return(result)
 	} else{
-		chains <- lapply(result, renderChain)
-		do.call(tagList, chains)
+		# Get information about graph hierarchy
+		chains <- result %>% unlist()
+		P1 <- chains[1] %>% num2name()
+		P2 <- chains %>% tail(1) %>% num2name()
+		chainMatrix <- chains %>% 
+			matrix(
+				nrow = length(result),
+				ncol = length(result[[1]]),
+				byrow = TRUE
+			)
+		# Get list of vertices to remove from graph
+		nodeNames <- chains %>%  num2name()
+		removeList <- getEggs() %>% 
+			filter(!Name %in% nodeNames) %>% 
+			pull(Name)
+		# Apply modifications
+		graph <- getGraph()
+		graph <- graph %>% 
+			delete_vertices(removeList)
+		# Set hierarchy level
+		for (i in 1:ncol(chainMatrix)){
+			nodeList <- chainMatrix[,i]  %>% num2name()
+			V(graph)$level[V(graph)$name %in% nodeList] <- i
+		}
+		return(graph)
 	}
 	
 }
@@ -225,25 +249,32 @@ eggWillBe <- function(mother){
 	# But there's a 50/50 chance that Nidoran-F lays an egg with Nidoran-M.
 	# Since that's what's necessary for breeding chains, return him.
 	eggs <- getEggs()
-	# Nidoran special case
-	if (mother == "nidoran-f"){
-		return("nidoran-m")
-	}
-	# otherwise:
-	# Step backward through the evolutionary tree to find the base form
-	pname <- mother
-	known <- FALSE
-	while (!(known)){
-		evFrom <- eggs %>% 
-			filter(fname == pname) %>% 
-			pull(EvolvesFrom)
-		if (is.na(evFrom)) {
-			known <- TRUE
-		} else {
-			pname <- evFrom
+	
+	# Make it return vectors if requested
+	output = c()
+	for (i in mother){
+		# Nidoran special case
+		if (i == "nidoran-f"){
+			output <- append(output, "nidoran-m")
+			next
 		}
+		# otherwise:
+		# Step backward through the evolutionary tree to find the base form
+		pname <- i
+		known <- FALSE
+		while (!(known)){
+			evFrom <- eggs %>% 
+				filter(fname == pname) %>% 
+				pull(EvolvesFrom)
+			if (is.na(evFrom)) {
+				known <- TRUE
+			} else {
+				pname <- evFrom
+			}
+		}
+		output <- append(output, pname)
 	}
-	return(pname)
+	return(output)
 }
 
 canInherit <- function(Pok, Move){
@@ -251,19 +282,26 @@ canInherit <- function(Pok, Move){
 	# find the name as it's formatted in the move table
 	if (is.numeric(Pok)){
 		fname <- getEggs() %>% 
-			filter(Number == Pok) %>% 
+			filter(Number %in% Pok) %>% 
+			arrange(match(Number, Pok)) %>% 
 			pull(fname)
 	} else {
 		fname <- getEggs() %>% 
-			filter(Name == Pok) %>% 
+			filter(Name %in% Pok) %>% 
+			arrange(match(Number, Pok)) %>% 
 			pull(fname)
 	}
-	fname <- eggWillBe(fname)
+	fnames <- eggWillBe(fname)
 	# load the move table and check your values
-	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
-		filter(pokemon == fname) %>% 
-		filter(Name == Move) %>%
-		nrow() > 0
+	output <- c()
+	for (fname in fnames){
+		check <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+			filter(pokemon %in% fname) %>% 
+			filter(Name == Move) %>%
+			nrow() > 0
+		output <- append(output, check)
+	}
+	return(output)
 }
 
 findChain <- function(P1, P2, MoveName){
@@ -380,12 +418,14 @@ name2num <- function(nameList){
 	# Convert a list of Pokemon names to Pokemon numbers
 	getEggs() %>% 
 		filter(Name %in% nameList) %>% 
+		arrange(match(Name, nameList)) %>% 
 		pull(Number)
 }
 num2name <- function(numberList){
 	# Convert a list of Pokemon numbers to Pokemon names
 	getEggs() %>% 
 		filter(Number %in% numberList) %>% 
+		arrange(match(Number, numberList)) %>% 
 		pull(Name)
 }
 
