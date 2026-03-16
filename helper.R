@@ -288,7 +288,7 @@ canInherit <- function(Pok, Move){
 	} else {
 		fname <- getEggs() %>% 
 			filter(Name %in% Pok) %>% 
-			arrange(match(Number, Pok)) %>% 
+			arrange(match(Name, Pok)) %>% 
 			pull(fname)
 	}
 	fnames <- eggWillBe(fname)
