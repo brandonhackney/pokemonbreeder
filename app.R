@@ -10,10 +10,6 @@ setActiveVersion(dflt)
 
 # A function that organizes the UI elements of the shiny app	
 uiF <- page_sidebar(
-	# Load CSS for breeding chains
-	tags$head(
-		tags$link(rel = "stylesheet", type = "text/css", href = "chains.css")
-	),
 
 	# Persistent collapsible sidebar to select game generation
 	sidebar = sidebar(

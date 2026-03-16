@@ -35,7 +35,6 @@ Below is an example of what the app looks like in list mode:
 * `selectorUI.R`: R code for a custom UI element that gets repeated
 * `readme.md`: this document.
 * `vglist.rds`: a manually-defined list of games for which data is available
-* `/www/chains.css`: a stylesheet for formatting certain parts of the app
 
 Using this app will generate additional `.rds` files to store data that
 otherwise takes a bit of time to download and process.
