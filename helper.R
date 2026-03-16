@@ -283,10 +283,12 @@ canInherit <- function(Pok, Move){
 	if (is.numeric(Pok)){
 		fname <- getEggs() %>% 
 			filter(Number %in% Pok) %>% 
+			arrange(match(Number, Pok)) %>% 
 			pull(fname)
 	} else {
 		fname <- getEggs() %>% 
 			filter(Name %in% Pok) %>% 
+			arrange(match(Number, Pok)) %>% 
 			pull(fname)
 	}
 	fnames <- eggWillBe(fname)
@@ -416,12 +418,14 @@ name2num <- function(nameList){
 	# Convert a list of Pokemon names to Pokemon numbers
 	getEggs() %>% 
 		filter(Name %in% nameList) %>% 
+		arrange(match(Name, nameList)) %>% 
 		pull(Number)
 }
 num2name <- function(numberList){
 	# Convert a list of Pokemon numbers to Pokemon names
 	getEggs() %>% 
 		filter(Number %in% numberList) %>% 
+		arrange(match(Number, numberList)) %>% 
 		pull(Name)
 }
 
