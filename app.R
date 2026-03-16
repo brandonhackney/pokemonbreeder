@@ -193,18 +193,11 @@ serverF <- function(input, output) {
 		bindEvent(genToServer(), sourcePok())
 	
 	# When user pushes the button, calculate possible chains from Source to Target
-	doMoveCheck <- eventReactive(
-		input$buttonMoves,
-		ignoreNULL = FALSE,
-		ignoreInit = TRUE,
-		{
-			getPath(sourcePok(), targetPok(), input$movePicker)
-		}
-	)
+	doMoveCheck <- reactive({input$buttonMoves})
 	
 	# Display the list of chains from Source to Target
 	output$chainResults <- renderVisNetwork({
-		result <- doMoveCheck()
+		result <- getPath(sourcePok(), targetPok(), input$movePicker)
 		if (is.null(result)){
 			# No data - Display message
 			visNetwork(nodes = data.frame(id=1, label="No Results", 
@@ -214,7 +207,7 @@ serverF <- function(input, output) {
 			result %>% 
 				renderChains(sourcePok())
 		}
-		})
+		}) %>% bindEvent(doMoveCheck(), ignoreInit = TRUE)
 	
 }
 
