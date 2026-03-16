@@ -249,25 +249,32 @@ eggWillBe <- function(mother){
 	# But there's a 50/50 chance that Nidoran-F lays an egg with Nidoran-M.
 	# Since that's what's necessary for breeding chains, return him.
 	eggs <- getEggs()
-	# Nidoran special case
-	if (mother == "nidoran-f"){
-		return("nidoran-m")
-	}
-	# otherwise:
-	# Step backward through the evolutionary tree to find the base form
-	pname <- mother
-	known <- FALSE
-	while (!(known)){
-		evFrom <- eggs %>% 
-			filter(fname == pname) %>% 
-			pull(EvolvesFrom)
-		if (is.na(evFrom)) {
-			known <- TRUE
-		} else {
-			pname <- evFrom
+	
+	# Make it return vectors if requested
+	output = c()
+	for (i in mother){
+		# Nidoran special case
+		if (i == "nidoran-f"){
+			output <- append(output, "nidoran-m")
+			next
 		}
+		# otherwise:
+		# Step backward through the evolutionary tree to find the base form
+		pname <- i
+		known <- FALSE
+		while (!(known)){
+			evFrom <- eggs %>% 
+				filter(fname == pname) %>% 
+				pull(EvolvesFrom)
+			if (is.na(evFrom)) {
+				known <- TRUE
+			} else {
+				pname <- evFrom
+			}
+		}
+		output <- append(output, pname)
 	}
-	return(pname)
+	return(output)
 }
 
 canInherit <- function(Pok, Move){
@@ -275,19 +282,24 @@ canInherit <- function(Pok, Move){
 	# find the name as it's formatted in the move table
 	if (is.numeric(Pok)){
 		fname <- getEggs() %>% 
-			filter(Number == Pok) %>% 
+			filter(Number %in% Pok) %>% 
 			pull(fname)
 	} else {
 		fname <- getEggs() %>% 
-			filter(Name == Pok) %>% 
+			filter(Name %in% Pok) %>% 
 			pull(fname)
 	}
-	fname <- eggWillBe(fname)
+	fnames <- eggWillBe(fname)
 	# load the move table and check your values
-	loadMovesets(getActiveGen(), getActiveVersion()) %>% 
-		filter(pokemon == fname) %>% 
-		filter(Name == Move) %>%
-		nrow() > 0
+	output <- c()
+	for (fname in fnames){
+		check <- loadMovesets(getActiveGen(), getActiveVersion()) %>% 
+			filter(pokemon %in% fname) %>% 
+			filter(Name == Move) %>%
+			nrow() > 0
+		output <- append(output, check)
+	}
+	return(output)
 }
 
 findChain <- function(P1, P2, MoveName){
