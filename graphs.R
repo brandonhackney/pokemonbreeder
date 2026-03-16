@@ -139,16 +139,27 @@ getMates <- function(Pokemon, modeSelection){
 # Returns a character list giving the names of each vertex from X to Y
 # But if Y is unreachable from X, it returns 0 instead.
 getPath <- function(A, B, moveName){
+	graph <- getGraph()
 	# Short-circuit because later functions don't handle these cases well
 	if (A == "" || B == ""){return(NULL)}
 	if (!missing(moveName) && !canInherit(B, moveName)){return(NULL)}
 	if ((A == B) ){
 		# Either the move is provided and heritable, or not provided at all.
 		# Subset by node to just A
-		return(subgraph(getGraph(), A))
-		}
-	# Otherwise, find paths from A to B
-	result <- all_shortest_paths(getGraph(),
+		return(subgraph(graph, A))
+	}
+	
+	# First subset the graph to only those nodes capable of learning the move
+	if (!(missing(moveName))){
+		test <- getEggs() %>% 
+			pull(Name) %>% 
+			canInherit(moveName)
+		test[name2num(A)] <- TRUE # Ensure A is retained
+		graph <- subgraph(graph, test) 
+	}
+	
+	# Find paths from A to B
+	result <- all_shortest_paths(graph,
 								 A,
 								 to = B,
 								 weights = NA,
@@ -156,19 +167,7 @@ getPath <- function(A, B, moveName){
 	if (is_empty(result$vpaths)){return(NULL)}
 	# The output has a list of vertices and a list of edges
 	# We want the specific edges used, as these vertices could have other edges.
-	sub <- subgraph_from_edges(getGraph(), result$epaths %>% unlist())
-	
-	# Now filter out any chains with Pokemon who can't learn the selected move
-	if (!missing(moveName)){
-		vertNames <- result$vpaths %>% unlist() %>% unique()
-		test <- canInherit(vertNames, moveName)
-		if (sum(test) == 0) {return(NULL)}
-		# otherwise, subset the graph to only include valid vertices
-		test[vertNames == name2num(A)] <- TRUE # Manually ensure A is considered valid!
-		sub <- vertNames[test] %>%
-			num2name() %>% 
-			subgraph(sub, .)
-	}
+	sub <- subgraph_from_edges(graph, result$epaths %>% unlist())
 	return(sub)
 }
 
