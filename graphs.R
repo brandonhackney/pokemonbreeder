@@ -138,23 +138,29 @@ getMates <- function(Pokemon, modeSelection){
 # Find path from X to Y
 # Returns a character list giving the names of each vertex from X to Y
 # But if Y is unreachable from X, it returns 0 instead.
-getPath <- function(A, B){
-	# This warns that the unweighted algorithm ignores weights
-	# but I don't supply weights, so I don't care about the warning.
-	suppressWarnings(
-	result <- shortest_paths(getGraph(),
+getPath <- function(A, B, moveName){
+	result <- all_shortest_paths(getGraph(),
 								 A,
 								 to = B,
-								 algorithm = "unweighted",
-								 output = "vpath"
+								 weights = NA,
 								 )
-	)
-	# Even though we specify output = vpath,
-	# the returned object is a list where vpath is element 1,
-	# and then it has null values for the other 3 output options.
-	# So we have to slice that first element to actually get vpath.
-	# Then access the "name" attribute from within THAT
-	return(result$vpath[[1]]$name)
+	if (is_empty(result$vpaths)){return(NULL)}
+	# The output has a list of vertices and a list of edges
+	# We want the specific edges used, as these vertices could have other edges.
+	sub <- subgraph_from_edges(getGraph(), result$epaths %>% unlist())
+	
+	# Now filter out any chains with Pokemon who can't learn the selected move
+	if (!missing(moveName)){
+		vertNames <- result$vpaths %>% unlist() %>% unique()
+		test <- canInherit(vertNames, moveName)
+		if (sum(test) == 0) {return(NULL)}
+		# otherwise, subset the graph to only include valid vertices
+		test[vertNames == name2num(A)] <- TRUE # Manually ensure A is considered valid!
+		sub <- vertNames[test] %>%
+			num2name() %>% 
+			subgraph(sub, .)
+	}
+	return(sub)
 }
 
 insertSprites <- function(nodes){
@@ -214,8 +220,44 @@ renderGraph <- function(eggGraph){
 	eggGraph <- dittoVis(eggGraph)
 	eggGraph <- insertEvoEdges(eggGraph)
 	data <- toVisNetworkData(eggGraph)
-	nodes <- insertSprites(data$nodes)
+	data$nodes <- insertSprites(data$nodes)
 	
+	data <- adjustEdges(data)
+	
+	repList <- list(nodeDistance = 150, springLength = 200, springConstant = .005, centralGravity = .02)
+	stabil <- list(enabled = TRUE, iterations = 300)
+	
+	visNetwork(nodes = data$nodes, edges = data$edges) %>% 
+		visIgraphLayout(layout = "layout_in_circle", physics = TRUE) %>%
+		visNodes(size = 40, font = list(size = 20)) %>% 
+		visEdges(arrows = "to") %>% # smooth = TRUE would be nice but my laptop can't handle it
+		visPhysics(solver = "repulsion", repulsion = repList) %>%
+		visOptions(highlightNearest = list(enabled = T, hover =T, algorithm = "hierarchical"),
+							 nodesIdSelection = list(enabled = TRUE)
+							 )
+}
+
+renderChains <- function(chainGraph, P1){
+	# Variant function specifying how to render inheritance chains
+	chainGraph <- dittoVis(chainGraph)
+	chainGraph <- insertEvoEdges(chainGraph)
+	data <- toVisNetworkData(chainGraph)
+	data$nodes <- insertSprites(data$nodes)
+	data <- adjustEdges(data)
+	# Set "hierarchy" to ensure it reads from left to right properly
+	data$nodes$level <- distances(chainGraph, v=P1, weights = NA)[1,]
+
+	# Very similar to the other one, but we don't need physics or selection
+	visNetwork(nodes = data$nodes, edges = data$edges) %>% 
+		# visIgraphLayout(layout = "layout_nicely") %>%
+		visNodes(size = 40, font = list(size = 20)) %>% 
+		visEdges(arrows = "to", smooth = TRUE) %>% 
+		visHierarchicalLayout(direction = "LR", levelSeparation = 250)
+	
+	
+}
+
+adjustEdges <- function(data){
 	data$edges$color.color <- 
 		ifelse(data$edges$type == "evolution", "#FFA500", "#1E90FF")
 	data$edges$width <-
@@ -224,16 +266,5 @@ renderGraph <- function(eggGraph){
 		ifelse(data$edges$type == "evolution", 30, 500)
 	data$edges$arrows.to.scaleFactor <-
 		ifelse(data$edges$type == "evolution", 1, 0.5)
-	
-	repList <- list(nodeDistance = 150, springLength = 200, springConstant = .005, centralGravity = .02)
-	stabil <- list(enabled = TRUE, iterations = 300)
-	
-	visNetwork(nodes = nodes, edges = data$edges) %>% 
-		visIgraphLayout(layout = "layout_in_circle", physics = TRUE) %>%
-		visNodes(size = 40, font = list(size = 20)) %>% 
-		visEdges(arrows = "to") %>% # smooth = TRUE would be nice but my laptop can't handle it
-		visPhysics(solver = "repulsion", repulsion = repList) %>%
-		visOptions(highlightNearest = list(enabled = T, hover =T, algorithm = "hierarchical"),
-							 nodesIdSelection = list(enabled = TRUE)
-							 )
+	return(data)
 }

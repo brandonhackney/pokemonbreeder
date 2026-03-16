@@ -198,14 +198,13 @@ serverF <- function(input, output) {
 		ignoreNULL = FALSE,
 		ignoreInit = TRUE,
 		{
-			findChain(sourcePok(), targetPok(), input$movePicker)
+			getPath(sourcePok(), targetPok(), input$movePicker)
 		}
 	)
 	
 	# Display the list of chains from Source to Target
 	output$chainResults <- renderVisNetwork({
-		result <- doMoveCheck() %>%
-			renderAllChains()
+		result <- doMoveCheck()
 		if (is.null(result)){
 			# No data - Display message
 			visNetwork(nodes = data.frame(id=1, label="No Results", 
@@ -213,8 +212,7 @@ serverF <- function(input, output) {
 				visEdges(hidden = TRUE)
 		} else {
 			result %>% 
-				renderGraph() %>% 
-				visHierarchicalLayout(direction = "LR")
+				renderChains(sourcePok())
 		}
 		})
 	
