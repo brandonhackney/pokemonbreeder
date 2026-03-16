@@ -139,6 +139,15 @@ getMates <- function(Pokemon, modeSelection){
 # Returns a character list giving the names of each vertex from X to Y
 # But if Y is unreachable from X, it returns 0 instead.
 getPath <- function(A, B, moveName){
+	# Short-circuit because later functions don't handle these cases well
+	if (A == "" || B == ""){return(NULL)}
+	if (!missing(moveName) && !canInherit(B, moveName)){return(NULL)}
+	if ((A == B) ){
+		# Either the move is provided and heritable, or not provided at all.
+		# Subset by node to just A
+		return(subgraph(getGraph(), A))
+		}
+	# Otherwise, find paths from A to B
 	result <- all_shortest_paths(getGraph(),
 								 A,
 								 to = B,
