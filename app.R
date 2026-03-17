@@ -78,7 +78,7 @@ uiF <- page_sidebar(
 				# Part 1: Selection area
 				sidebar = sidebar(
 					open = "always",
-					width = 300,
+					width = 350,
 					 helpText("Check whether the source Pokemon's selected move
 					 				 can be chain-bred to the target Pokemon.
 					 				 Displays all possible chains with the fewest steps."),
