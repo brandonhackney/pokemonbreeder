@@ -1,5 +1,7 @@
-library(shiny)
-library(bslib)
+# Load/install all required packages
+source("setup.R")
+setup("shiny", "bslib", "tidyverse", "igraph", "visNetwork", "httr2", "jsonlite", "this.path")
+# Load local functions
 source("helper.R")
 source("graphs.R")
 source("selectorUI.R")
